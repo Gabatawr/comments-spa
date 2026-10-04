@@ -1,0 +1,74 @@
+# ---------------------------------------------------------------------------
+# SPA «Комментарии» — docker compose stack
+#
+#   docker compose up --build -d
+#   open http://localhost:8080
+#
+# Default DB is SQLite (file on a named volume). The Middle-level path
+# (PostgreSQL, Redis, Elasticsearch, message broker) is sketched in comments
+# at the bottom and is intentionally NOT started by default.
+# ---------------------------------------------------------------------------
+
+services:
+  comments:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: comments-spa:latest
+    container_name: comments-spa
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: "Data Source=/app/data/comments.db"
+      Storage__Root: /app/storage
+      Features__DevCaptchaPeek: "false"
+      # Reverse-proxy awareness (client IP identification):
+      # ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    volumes:
+      - comments-data:/app/data
+      - comments-storage:/app/storage
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+
+volumes:
+  comments-data:
+  comments-storage:
+
+# ---------------------------------------------------------------------------
+# Middle-level path (NOT enabled — out of scope for this assignment).
+# To switch the app to PostgreSQL: add Npgsql provider in the backend, then
+# enable the service below and point ConnectionStrings__Default at it.
+# ---------------------------------------------------------------------------
+#  postgres:
+#    image: postgres:16-alpine
+#    environment:
+#      POSTGRES_DB: comments
+#      POSTGRES_USER: comments
+#      POSTGRES_PASSWORD: comments
+#    volumes:
+#      - comments-pg:/var/lib/postgresql/data
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U comments"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#
+#  redis:
+#    image: redis:7-alpine
+#
+#  rabbitmq:
+#    image: rabbitmq:3-management-alpine
+#    ports: ["15672:15672"]
+#
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
+#    environment:
+#      discovery.type: single-node
+#      xpack.security.enabled: "false"
