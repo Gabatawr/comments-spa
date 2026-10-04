@@ -15,16 +15,34 @@ TestResults/
 comments.db*
 src/Backend/CommentsApi/storage/
 src/Backend/CommentsApi/wwwroot/
+src/Backend/Comments.Api/storage/
+src/Backend/Comments.Api/wwwroot/
+src/Backend/Comments.Api/data/
 
 # Repo-local NuGet cache (see NuGet.config)
 .nuget/
 .nuget-packages/
 **/.nuget-packages/
 
-# Node (QA frontend tests)
+# Node (Angular SPA + QA frontend tests)
 node_modules/
 package-lock.json
 coverage/
+# ...but the Angular lockfile is committed so `npm ci` is reproducible in Docker.
+!src/Frontend/package-lock.json
+
+# Angular build/cache output
+src/Frontend/dist/
+src/Frontend/.angular/
+src/Frontend/node_modules/
+
+# Tooling caches kept inside the repo (sandbox cannot write $HOME)
+.dotnet-home/
+.npm-cache/
+.playwright/
+
+# QA runtime scratch space (live API instances, curl/browser artifacts)
+tests/.runtime/
 
 # OS / IDE
 .DS_Store

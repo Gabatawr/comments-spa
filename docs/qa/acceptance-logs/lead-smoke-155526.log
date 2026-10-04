@@ -1,0 +1,136 @@
+Comments SPA smoke test v2 against http://localhost:8080 (api http://localhost:8081)
+CAPTCHA peek mode: redis (dev peek disabled -> reading Redis store 'comments-spa-redis')
+Production 404 checks will run against http://localhost:8080 (override with PROD_BASE)
+
+== health v2 ==
+  PASS  GET /api/health -> status=ok database=ok
+  PASS  health reports legacy 'cache'
+  PASS  health reports legacy 'queue'
+  PASS  health reports legacy 'websocket'
+  PASS  health reports legacy 'version'
+  PASS  health v2 field redis=ok
+  PASS  health v2 field broker=ok
+  PASS  health v2 field search=ok
+  PASS  health v2 field storage=ok
+  PASS  health version is 2.x (2.0.0)
+  PASS  health queue carries pending/processed counters
+  PASS  health websocket carries clients counter
+  PASS  GET /api/health/live -> 200 ok
+  PASS  GET /api/health/ready -> 200 (DB up)
+
+== captcha ==
+  PASS  GET /api/captcha -> PNG data URL, TTL 300s, no code; dev peek returns 6 chars
+  PASS  captcha code uses allowed alphabet (no 0/O/1/I): E347UN
+  PASS  CAPTCHA accepted once (201)
+  PASS  CAPTCHA replay rejected (400 errors.captcha)
+  PASS  unknown CAPTCHA id rejected (400 errors.captcha)
+
+== create root + client identity ==
+  PASS  POST /api/comments -> 201 with correct userName (id=2)
+  PASS  201 Location header -> /api/comments/2
+  PASS  client userAgent persisted
+  PASS  client clientIp persisted (172.22.0.1)
+  PASS  X-Forwarded-For first hop stored as clientIp (203.0.113.7)
+  PASS  userAgent truncated to <=512 (len=512)
+
+== reply cascade (deep) ==
+  PASS  cascade root created (id=5)
+  PASS  created reply chain of depth 5
+  PASS  GET /api/comments/{root} exposes full nested tree (depth=5)
+
+== sorting (userName / email / createdAt, both directions) ==
+  PASS  sortBy=userName sortDir=asc -> E2e179112933212890Alpha,E2e179112933212890Bravo,E2e179112933212890Charlie
+  PASS  sortBy=userName sortDir=desc -> E2e179112933212890Charlie,E2e179112933212890Bravo,E2e179112933212890Alpha
+  PASS  sortBy=email sortDir=asc -> E2e179112933212890Alpha,E2e179112933212890Bravo,E2e179112933212890Charlie
+  PASS  sortBy=email sortDir=desc -> E2e179112933212890Charlie,E2e179112933212890Bravo,E2e179112933212890Alpha
+  PASS  sortBy=createdAt sortDir=asc -> E2e179112933212890Alpha,E2e179112933212890Bravo,E2e179112933212890Charlie
+  PASS  sortBy=createdAt sortDir=desc -> E2e179112933212890Charlie,E2e179112933212890Bravo,E2e179112933212890Alpha
+  PASS  userName sort is case-insensitive (lower())
+
+== pagination + keyset ==
+  PASS  default pageSize = 25
+  PASS  totalPages math (10 items -> 1 pages)
+  PASS  out-of-range page (1001 > 1) -> 200 empty items
+  PASS  huge page (2000000000) -> 200 empty (no offset overflow)
+  PASS  pageSize=5 honoured
+  PASS  pageSize>100 clamped to 100
+  PASS  pageSize<1 falls back to 25
+  PASS  nextCursor present when more pages exist
+  PASS  keyset cursor page 2 has no overlap with page 1
+  PASS  cursor with mismatched sort -> 400
+
+== preview (AJAX, no navigation) ==
+  PASS  POST /api/preview valid -> sanitized html
+  PASS  POST /api/preview disallowed tag -> valid=false with errors (HTTP 200)
+
+== XSS rejection ==
+  PASS  preview strips <script>
+  PASS  stored <script> rejected server-side (400 errors.text)
+  PASS  onerror attribute rejected server-side (400 errors.text)
+  PASS  javascript: href rejected server-side (400 errors.text)
+  PASS  data: href rejected server-side (400 errors.text)
+  PASS  list payload contains no raw <script>
+
+== SQL injection ==
+  PASS  SQLi sortBy=' OR 1=1-- handled (HTTP 200, no 500)
+  PASS  SQLi sortByName union handled (HTTP 200, no 500)
+  PASS  SQLi sortDir=';DELETE handled (HTTP 200, no 500)
+  PASS  SQLi page=1;DROP TABLE handled (HTTP 400, no 500)
+  PASS  SQLi pageSize=25;DROP handled (HTTP 400, no 500)
+  PASS  SQLi cursor handled (HTTP 400, no 500)
+  PASS  SQLi q in search handled (HTTP 200, no 500)
+  PASS  SQLi payload in text accepted as data (201)
+  PASS  DB alive after SQLi attempts
+
+== attachments ==
+  PASS  TXT 1KB accepted (kind=text, id=1)
+  PASS  TXT attachment width=null
+  PASS  TXT served inline with nosniff
+  PASS  TXT thumb -> 404
+  PASS  TXT >100KB rejected with errors.attachment
+  PASS  800x600 PNG downscaled to 320x240
+  PASS  served image is resized (320x240)
+tests/e2e/smoke.sh: line 76: warning: command substitution: ignored null byte in input
+  PASS  image thumb -> 200
+
+== attachment errors ==
+  PASS  unknown attachment -> 404
+
+== GraphQL ==
+  PASS  GraphQL query comments(...) -> page data (13 total)
+  PASS  GraphQL query comment(id:1) accepted
+  PASS  GraphQL mutation createComment -> success=true (id=19)
+  PASS  GraphQL mutation bad CAPTCHA -> success=false with errors (HTTP 200)
+
+== search (/api/search) ==
+  PASS  GET /api/search?q=<token> found the indexed comment (totalItems=1)
+  PASS  search response shape has query/took/items
+  PASS  search hit carries comment
+  PASS  GET /api/search without q -> 400
+
+== stats (/api/stats) ==
+  PASS  GET /api/stats -> totalComments=20, totalRoots=15, cacheHitRate=0.6842105263157895
+
+== JSON create /api/comments/{id}/child ==
+  PASS  POST /api/comments/{id}/child -> 201, parentId=5 (id=21)
+
+== WebSocket hello + comment.created ==
+  PASS  WS ws://localhost:8080/ws -> hello frame received
+  PASS  WS received comment.created for SmkWs13843
+  PASS  WS comment.created carries eventId
+  PASS  WS ping -> pong
+
+== SPA static hosting (nginx) ==
+  PASS  GET / serves index.html
+  PASS  index.html looks like an app shell
+  PASS  SPA fallback serves index.html for deep route
+  PASS  unknown /api route -> 404 (not SPA fallback)
+
+== dev-only endpoints in Production ==
+  PASS  PROD GET /api/dev/captcha/{id} -> 404
+  PASS  PROD POST /api/dev/seed -> 404
+  PASS  PROD GraphQL introspection disabled (HTTP 400)
+  PASS  PROD GET /graphql disabled (HTTP 405)
+
+================ SUMMARY ================
+PASS: 93  FAIL: 0  SKIP: 0

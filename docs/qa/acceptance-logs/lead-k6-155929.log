@@ -1,0 +1,528 @@
+### seed 100k (db path)
+[seed] db path: container=comments-spa-postgres db=comments user=comments
+[seed] db path: current=32, target=100000
+[seed] db path: inserting rows 33..100000 (10000 roots, flat-1 reply depth)
+[seed] db path: totalComments now 100000
+
+real	0m7.963s
+user	0m0.053s
+sys	0m0.066s
+### k6 corroboration (Production, create disabled)
+[run] label=lead-accept-100k count=100000 scale=1 steady=45s base=http://localhost:8081
+[run] api healthy at http://localhost:8081
+label:            lead-accept-100k
+date_utc:         2026-10-04T15:59:37Z
+git_sha:          5e8a407
+host_nproc:       6
+host_mem_total:   11Gi
+target_rows:      100000
+base_url:         http://localhost:8081
+scenarios:        SEARCH_ENABLED=true CREATE_ENABLED=false WS_ENABLED=true
+actual_total:     {"totalComments":100000,"totalRoots":9994,"totalAttachments":5,"oldestAt":"2026-10-03T12:12:49.933455Z","newestAt":"2026-10-04T15:58:56.933455Z","cacheHitRate":0.6875}
+[run] --no-seed: reusing existing dataset
+[run] k6: docker compose --profile load run --rm k6 run /scripts/scenarios.js
+ Container comments-spa-rabbitmq Running 
+ Container comments-spa-redis Running 
+ Container comments-spa-elasticsearch Running 
+ Container comments-spa-postgres Running 
+ Container comments-spa-api Running 
+ Container comments-spa-rabbitmq Waiting 
+ Container comments-spa-elasticsearch Waiting 
+ Container comments-spa-postgres Waiting 
+ Container comments-spa-redis Waiting 
+ Container comments-spa-redis Healthy 
+ Container comments-spa-postgres Healthy 
+ Container comments-spa-elasticsearch Healthy 
+ Container comments-spa-rabbitmq Healthy 
+ Container comments-spa-api Waiting 
+ Container comments-spa-api Healthy 
+ Container comments-spa-k6-run-1487e1bc1340 Creating 
+ Container comments-spa-k6-run-1487e1bc1340 Created 
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /scripts/scenarios.js
+        output: -
+
+     scenarios: (100.00%) 4 scenarios, 33 max VUs, 1m15s max duration (incl. graceful stop):
+              * browse: Up to 15 looping VUs for 1m5s over 3 stages (gracefulRampDown: 30s, exec: browse, gracefulStop: 10s)
+              * read_one: Up to 8 looping VUs for 1m5s over 3 stages (gracefulRampDown: 30s, exec: readOne, gracefulStop: 10s)
+              * search: Up to 5 looping VUs for 1m5s over 3 stages (gracefulRampDown: 30s, exec: search, gracefulStop: 10s)
+              * websocket: Up to 5 looping VUs for 1m5s over 3 stages (gracefulRampDown: 30s, exec: websocket, gracefulStop: 10s)
+
+
+running (0m01.0s), 05/33 VUs, 30 complete and 0 interrupted iterations
+browse      [   1% ] 02/15 VUs  0m00.9s/1m05.0s
+read_one    [   1% ] 1/8 VUs    0m00.9s/1m05.0s
+search      [   1% ] 1/5 VUs    0m00.9s/1m05.0s
+websocket   [   1% ] 1/5 VUs    0m00.9s/1m05.0s
+
+running (0m02.0s), 07/33 VUs, 76 complete and 0 interrupted iterations
+browse      [   3% ] 03/15 VUs  0m01.9s/1m05.0s
+read_one    [   3% ] 2/8 VUs    0m01.9s/1m05.0s
+search      [   3% ] 1/5 VUs    0m01.9s/1m05.0s
+websocket   [   3% ] 1/5 VUs    0m01.9s/1m05.0s
+
+running (0m03.0s), 12/33 VUs, 141 complete and 0 interrupted iterations
+browse      [   4% ] 05/15 VUs  0m02.9s/1m05.0s
+read_one    [   4% ] 3/8 VUs    0m02.9s/1m05.0s
+search      [   4% ] 2/5 VUs    0m02.9s/1m05.0s
+websocket   [   4% ] 2/5 VUs    0m02.9s/1m05.0s
+
+running (0m04.0s), 13/33 VUs, 248 complete and 0 interrupted iterations
+browse      [   6% ] 06/15 VUs  0m03.9s/1m05.0s
+read_one    [   6% ] 3/8 VUs    0m03.9s/1m05.0s
+search      [   6% ] 2/5 VUs    0m03.9s/1m05.0s
+websocket   [   6% ] 2/5 VUs    0m03.9s/1m05.0s
+
+running (0m05.0s), 15/33 VUs, 359 complete and 0 interrupted iterations
+browse      [   8% ] 07/15 VUs  0m04.9s/1m05.0s
+read_one    [   8% ] 4/8 VUs    0m04.9s/1m05.0s
+search      [   8% ] 2/5 VUs    0m04.9s/1m05.0s
+websocket   [   8% ] 2/5 VUs    0m04.9s/1m05.0s
+
+running (0m06.0s), 20/33 VUs, 520 complete and 0 interrupted iterations
+browse      [   9% ] 09/15 VUs  0m05.9s/1m05.0s
+read_one    [   9% ] 5/8 VUs    0m05.9s/1m05.0s
+search      [   9% ] 3/5 VUs    0m05.9s/1m05.0s
+websocket   [   9% ] 3/5 VUs    0m05.9s/1m05.0s
+
+running (0m07.0s), 21/33 VUs, 703 complete and 0 interrupted iterations
+browse      [  11% ] 10/15 VUs  0m06.9s/1m05.0s
+read_one    [  11% ] 5/8 VUs    0m06.9s/1m05.0s
+search      [  11% ] 3/5 VUs    0m06.9s/1m05.0s
+websocket   [  11% ] 3/5 VUs    0m06.9s/1m05.0s
+
+running (0m08.0s), 26/33 VUs, 894 complete and 0 interrupted iterations
+browse      [  12% ] 12/15 VUs  0m07.9s/1m05.0s
+read_one    [  12% ] 6/8 VUs    0m07.9s/1m05.0s
+search      [  12% ] 4/5 VUs    0m07.9s/1m05.0s
+websocket   [  12% ] 4/5 VUs    0m07.9s/1m05.0s
+
+running (0m09.0s), 28/33 VUs, 1115 complete and 0 interrupted iterations
+browse      [  14% ] 13/15 VUs  0m08.9s/1m05.0s
+read_one    [  14% ] 7/8 VUs    0m08.9s/1m05.0s
+search      [  14% ] 4/5 VUs    0m08.9s/1m05.0s
+websocket   [  14% ] 4/5 VUs    0m08.9s/1m05.0s
+
+running (0m10.0s), 29/33 VUs, 1382 complete and 0 interrupted iterations
+browse      [  15% ] 14/15 VUs  0m09.9s/1m05.0s
+read_one    [  15% ] 7/8 VUs    0m09.9s/1m05.0s
+search      [  15% ] 4/5 VUs    0m09.9s/1m05.0s
+websocket   [  15% ] 4/5 VUs    0m09.9s/1m05.0s
+
+running (0m11.0s), 33/33 VUs, 1678 complete and 0 interrupted iterations
+browse      [  17% ] 15/15 VUs  0m10.9s/1m05.0s
+read_one    [  17% ] 8/8 VUs    0m10.9s/1m05.0s
+search      [  17% ] 5/5 VUs    0m10.9s/1m05.0s
+websocket   [  17% ] 5/5 VUs    0m10.9s/1m05.0s
+
+running (0m12.0s), 33/33 VUs, 1975 complete and 0 interrupted iterations
+browse      [  18% ] 15/15 VUs  0m11.9s/1m05.0s
+read_one    [  18% ] 8/8 VUs    0m11.9s/1m05.0s
+search      [  18% ] 5/5 VUs    0m11.9s/1m05.0s
+websocket   [  18% ] 5/5 VUs    0m11.9s/1m05.0s
+
+running (0m13.0s), 33/33 VUs, 2282 complete and 0 interrupted iterations
+browse      [  20% ] 15/15 VUs  0m12.9s/1m05.0s
+read_one    [  20% ] 8/8 VUs    0m12.9s/1m05.0s
+search      [  20% ] 5/5 VUs    0m12.9s/1m05.0s
+websocket   [  20% ] 5/5 VUs    0m12.9s/1m05.0s
+
+running (0m14.0s), 33/33 VUs, 2579 complete and 0 interrupted iterations
+browse      [  21% ] 15/15 VUs  0m13.9s/1m05.0s
+read_one    [  21% ] 8/8 VUs    0m13.9s/1m05.0s
+search      [  21% ] 5/5 VUs    0m13.9s/1m05.0s
+websocket   [  21% ] 5/5 VUs    0m13.9s/1m05.0s
+
+running (0m15.0s), 33/33 VUs, 2876 complete and 0 interrupted iterations
+browse      [  23% ] 15/15 VUs  0m14.9s/1m05.0s
+read_one    [  23% ] 8/8 VUs    0m14.9s/1m05.0s
+search      [  23% ] 5/5 VUs    0m14.9s/1m05.0s
+websocket   [  23% ] 5/5 VUs    0m14.9s/1m05.0s
+
+running (0m16.0s), 33/33 VUs, 3164 complete and 0 interrupted iterations
+browse      [  24% ] 15/15 VUs  0m15.9s/1m05.0s
+read_one    [  24% ] 8/8 VUs    0m15.9s/1m05.0s
+search      [  24% ] 5/5 VUs    0m15.9s/1m05.0s
+websocket   [  24% ] 5/5 VUs    0m15.9s/1m05.0s
+
+running (0m17.0s), 33/33 VUs, 3448 complete and 0 interrupted iterations
+browse      [  26% ] 15/15 VUs  0m16.9s/1m05.0s
+read_one    [  26% ] 8/8 VUs    0m16.9s/1m05.0s
+search      [  26% ] 5/5 VUs    0m16.9s/1m05.0s
+websocket   [  26% ] 5/5 VUs    0m16.9s/1m05.0s
+
+running (0m18.0s), 33/33 VUs, 3723 complete and 0 interrupted iterations
+browse      [  28% ] 15/15 VUs  0m17.9s/1m05.0s
+read_one    [  28% ] 8/8 VUs    0m17.9s/1m05.0s
+search      [  28% ] 5/5 VUs    0m17.9s/1m05.0s
+websocket   [  28% ] 5/5 VUs    0m17.9s/1m05.0s
+
+running (0m19.0s), 33/33 VUs, 4013 complete and 0 interrupted iterations
+browse      [  29% ] 15/15 VUs  0m18.9s/1m05.0s
+read_one    [  29% ] 8/8 VUs    0m18.9s/1m05.0s
+search      [  29% ] 5/5 VUs    0m18.9s/1m05.0s
+websocket   [  29% ] 5/5 VUs    0m18.9s/1m05.0s
+
+running (0m20.0s), 33/33 VUs, 4312 complete and 0 interrupted iterations
+browse      [  31% ] 15/15 VUs  0m19.9s/1m05.0s
+read_one    [  31% ] 8/8 VUs    0m19.9s/1m05.0s
+search      [  31% ] 5/5 VUs    0m19.9s/1m05.0s
+websocket   [  31% ] 5/5 VUs    0m19.9s/1m05.0s
+
+running (0m21.0s), 33/33 VUs, 4607 complete and 0 interrupted iterations
+browse      [  32% ] 15/15 VUs  0m20.9s/1m05.0s
+read_one    [  32% ] 8/8 VUs    0m20.9s/1m05.0s
+search      [  32% ] 5/5 VUs    0m20.9s/1m05.0s
+websocket   [  32% ] 5/5 VUs    0m20.9s/1m05.0s
+
+running (0m22.0s), 33/33 VUs, 4900 complete and 0 interrupted iterations
+browse      [  34% ] 15/15 VUs  0m21.9s/1m05.0s
+read_one    [  34% ] 8/8 VUs    0m21.9s/1m05.0s
+search      [  34% ] 5/5 VUs    0m21.9s/1m05.0s
+websocket   [  34% ] 5/5 VUs    0m21.9s/1m05.0s
+
+running (0m23.0s), 33/33 VUs, 5183 complete and 0 interrupted iterations
+browse      [  35% ] 15/15 VUs  0m22.9s/1m05.0s
+read_one    [  35% ] 8/8 VUs    0m22.9s/1m05.0s
+search      [  35% ] 5/5 VUs    0m22.9s/1m05.0s
+websocket   [  35% ] 5/5 VUs    0m22.9s/1m05.0s
+
+running (0m24.0s), 33/33 VUs, 5477 complete and 0 interrupted iterations
+browse      [  37% ] 15/15 VUs  0m23.9s/1m05.0s
+read_one    [  37% ] 8/8 VUs    0m23.9s/1m05.0s
+search      [  37% ] 5/5 VUs    0m23.9s/1m05.0s
+websocket   [  37% ] 5/5 VUs    0m23.9s/1m05.0s
+
+running (0m25.0s), 33/33 VUs, 5792 complete and 0 interrupted iterations
+browse      [  38% ] 15/15 VUs  0m24.9s/1m05.0s
+read_one    [  38% ] 8/8 VUs    0m24.9s/1m05.0s
+search      [  38% ] 5/5 VUs    0m24.9s/1m05.0s
+websocket   [  38% ] 5/5 VUs    0m24.9s/1m05.0s
+
+running (0m26.0s), 33/33 VUs, 6085 complete and 0 interrupted iterations
+browse      [  40% ] 15/15 VUs  0m25.9s/1m05.0s
+read_one    [  40% ] 8/8 VUs    0m25.9s/1m05.0s
+search      [  40% ] 5/5 VUs    0m25.9s/1m05.0s
+websocket   [  40% ] 5/5 VUs    0m25.9s/1m05.0s
+
+running (0m27.0s), 33/33 VUs, 6376 complete and 0 interrupted iterations
+browse      [  41% ] 15/15 VUs  0m26.9s/1m05.0s
+read_one    [  41% ] 8/8 VUs    0m26.9s/1m05.0s
+search      [  41% ] 5/5 VUs    0m26.9s/1m05.0s
+websocket   [  41% ] 5/5 VUs    0m26.9s/1m05.0s
+
+running (0m28.0s), 33/33 VUs, 6673 complete and 0 interrupted iterations
+browse      [  43% ] 15/15 VUs  0m27.9s/1m05.0s
+read_one    [  43% ] 8/8 VUs    0m27.9s/1m05.0s
+search      [  43% ] 5/5 VUs    0m27.9s/1m05.0s
+websocket   [  43% ] 5/5 VUs    0m27.9s/1m05.0s
+
+running (0m29.0s), 33/33 VUs, 6973 complete and 0 interrupted iterations
+browse      [  44% ] 15/15 VUs  0m28.9s/1m05.0s
+read_one    [  44% ] 8/8 VUs    0m28.9s/1m05.0s
+search      [  44% ] 5/5 VUs    0m28.9s/1m05.0s
+websocket   [  44% ] 5/5 VUs    0m28.9s/1m05.0s
+
+running (0m30.0s), 33/33 VUs, 7260 complete and 0 interrupted iterations
+browse      [  46% ] 15/15 VUs  0m29.9s/1m05.0s
+read_one    [  46% ] 8/8 VUs    0m29.9s/1m05.0s
+search      [  46% ] 5/5 VUs    0m29.9s/1m05.0s
+websocket   [  46% ] 5/5 VUs    0m29.9s/1m05.0s
+
+running (0m31.0s), 33/33 VUs, 7548 complete and 0 interrupted iterations
+browse      [  48% ] 15/15 VUs  0m30.9s/1m05.0s
+read_one    [  48% ] 8/8 VUs    0m30.9s/1m05.0s
+search      [  48% ] 5/5 VUs    0m30.9s/1m05.0s
+websocket   [  48% ] 5/5 VUs    0m30.9s/1m05.0s
+
+running (0m32.0s), 33/33 VUs, 7848 complete and 0 interrupted iterations
+browse      [  49% ] 15/15 VUs  0m31.9s/1m05.0s
+read_one    [  49% ] 8/8 VUs    0m31.9s/1m05.0s
+search      [  49% ] 5/5 VUs    0m31.9s/1m05.0s
+websocket   [  49% ] 5/5 VUs    0m31.9s/1m05.0s
+
+running (0m33.0s), 33/33 VUs, 8146 complete and 0 interrupted iterations
+browse      [  51% ] 15/15 VUs  0m32.9s/1m05.0s
+read_one    [  51% ] 8/8 VUs    0m32.9s/1m05.0s
+search      [  51% ] 5/5 VUs    0m32.9s/1m05.0s
+websocket   [  51% ] 5/5 VUs    0m32.9s/1m05.0s
+
+running (0m34.0s), 33/33 VUs, 8429 complete and 0 interrupted iterations
+browse      [  52% ] 15/15 VUs  0m33.9s/1m05.0s
+read_one    [  52% ] 8/8 VUs    0m33.9s/1m05.0s
+search      [  52% ] 5/5 VUs    0m33.9s/1m05.0s
+websocket   [  52% ] 5/5 VUs    0m33.9s/1m05.0s
+
+running (0m35.0s), 33/33 VUs, 8715 complete and 0 interrupted iterations
+browse      [  54% ] 15/15 VUs  0m34.9s/1m05.0s
+read_one    [  54% ] 8/8 VUs    0m34.9s/1m05.0s
+search      [  54% ] 5/5 VUs    0m34.9s/1m05.0s
+websocket   [  54% ] 5/5 VUs    0m34.9s/1m05.0s
+
+running (0m36.0s), 33/33 VUs, 9015 complete and 0 interrupted iterations
+browse      [  55% ] 15/15 VUs  0m35.9s/1m05.0s
+read_one    [  55% ] 8/8 VUs    0m35.9s/1m05.0s
+search      [  55% ] 5/5 VUs    0m35.9s/1m05.0s
+websocket   [  55% ] 5/5 VUs    0m35.9s/1m05.0s
+
+running (0m37.0s), 33/33 VUs, 9313 complete and 0 interrupted iterations
+browse      [  57% ] 15/15 VUs  0m36.9s/1m05.0s
+read_one    [  57% ] 8/8 VUs    0m36.9s/1m05.0s
+search      [  57% ] 5/5 VUs    0m36.9s/1m05.0s
+websocket   [  57% ] 5/5 VUs    0m36.9s/1m05.0s
+
+running (0m38.0s), 33/33 VUs, 9626 complete and 0 interrupted iterations
+browse      [  58% ] 15/15 VUs  0m37.9s/1m05.0s
+read_one    [  58% ] 8/8 VUs    0m37.9s/1m05.0s
+search      [  58% ] 5/5 VUs    0m37.9s/1m05.0s
+websocket   [  58% ] 5/5 VUs    0m37.9s/1m05.0s
+
+running (0m39.0s), 33/33 VUs, 9928 complete and 0 interrupted iterations
+browse      [  60% ] 15/15 VUs  0m38.9s/1m05.0s
+read_one    [  60% ] 8/8 VUs    0m38.9s/1m05.0s
+search      [  60% ] 5/5 VUs    0m38.9s/1m05.0s
+websocket   [  60% ] 5/5 VUs    0m38.9s/1m05.0s
+
+running (0m40.0s), 33/33 VUs, 10226 complete and 0 interrupted iterations
+browse      [  61% ] 15/15 VUs  0m39.9s/1m05.0s
+read_one    [  61% ] 8/8 VUs    0m39.9s/1m05.0s
+search      [  61% ] 5/5 VUs    0m39.9s/1m05.0s
+websocket   [  61% ] 5/5 VUs    0m39.9s/1m05.0s
+
+running (0m41.0s), 33/33 VUs, 10536 complete and 0 interrupted iterations
+browse      [  63% ] 15/15 VUs  0m40.9s/1m05.0s
+read_one    [  63% ] 8/8 VUs    0m40.9s/1m05.0s
+search      [  63% ] 5/5 VUs    0m40.9s/1m05.0s
+websocket   [  63% ] 5/5 VUs    0m40.9s/1m05.0s
+
+running (0m42.0s), 33/33 VUs, 10817 complete and 0 interrupted iterations
+browse      [  64% ] 15/15 VUs  0m41.9s/1m05.0s
+read_one    [  64% ] 8/8 VUs    0m41.9s/1m05.0s
+search      [  64% ] 5/5 VUs    0m41.9s/1m05.0s
+websocket   [  64% ] 5/5 VUs    0m41.9s/1m05.0s
+
+running (0m43.0s), 33/33 VUs, 11114 complete and 0 interrupted iterations
+browse      [  66% ] 15/15 VUs  0m42.9s/1m05.0s
+read_one    [  66% ] 8/8 VUs    0m42.9s/1m05.0s
+search      [  66% ] 5/5 VUs    0m42.9s/1m05.0s
+websocket   [  66% ] 5/5 VUs    0m42.9s/1m05.0s
+
+running (0m44.0s), 33/33 VUs, 11405 complete and 0 interrupted iterations
+browse      [  68% ] 15/15 VUs  0m43.9s/1m05.0s
+read_one    [  68% ] 8/8 VUs    0m43.9s/1m05.0s
+search      [  68% ] 5/5 VUs    0m43.9s/1m05.0s
+websocket   [  68% ] 5/5 VUs    0m43.9s/1m05.0s
+
+running (0m45.0s), 33/33 VUs, 11688 complete and 0 interrupted iterations
+browse      [  69% ] 15/15 VUs  0m44.9s/1m05.0s
+read_one    [  69% ] 8/8 VUs    0m44.9s/1m05.0s
+search      [  69% ] 5/5 VUs    0m44.9s/1m05.0s
+websocket   [  69% ] 5/5 VUs    0m44.9s/1m05.0s
+
+running (0m46.0s), 33/33 VUs, 11988 complete and 0 interrupted iterations
+browse      [  71% ] 15/15 VUs  0m45.9s/1m05.0s
+read_one    [  71% ] 8/8 VUs    0m45.9s/1m05.0s
+search      [  71% ] 5/5 VUs    0m45.9s/1m05.0s
+websocket   [  71% ] 5/5 VUs    0m45.9s/1m05.0s
+
+running (0m47.0s), 33/33 VUs, 12294 complete and 0 interrupted iterations
+browse      [  72% ] 15/15 VUs  0m46.9s/1m05.0s
+read_one    [  72% ] 8/8 VUs    0m46.9s/1m05.0s
+search      [  72% ] 5/5 VUs    0m46.9s/1m05.0s
+websocket   [  72% ] 5/5 VUs    0m46.9s/1m05.0s
+
+running (0m48.0s), 33/33 VUs, 12575 complete and 0 interrupted iterations
+browse      [  74% ] 15/15 VUs  0m47.9s/1m05.0s
+read_one    [  74% ] 8/8 VUs    0m47.9s/1m05.0s
+search      [  74% ] 5/5 VUs    0m47.9s/1m05.0s
+websocket   [  74% ] 5/5 VUs    0m47.9s/1m05.0s
+
+running (0m49.0s), 33/33 VUs, 12885 complete and 0 interrupted iterations
+browse      [  75% ] 15/15 VUs  0m48.9s/1m05.0s
+read_one    [  75% ] 8/8 VUs    0m48.9s/1m05.0s
+search      [  75% ] 5/5 VUs    0m48.9s/1m05.0s
+websocket   [  75% ] 5/5 VUs    0m48.9s/1m05.0s
+
+running (0m50.0s), 33/33 VUs, 13187 complete and 0 interrupted iterations
+browse      [  77% ] 15/15 VUs  0m49.9s/1m05.0s
+read_one    [  77% ] 8/8 VUs    0m49.9s/1m05.0s
+search      [  77% ] 5/5 VUs    0m49.9s/1m05.0s
+websocket   [  77% ] 5/5 VUs    0m49.9s/1m05.0s
+
+running (0m51.0s), 33/33 VUs, 13499 complete and 0 interrupted iterations
+browse      [  78% ] 15/15 VUs  0m50.9s/1m05.0s
+read_one    [  78% ] 8/8 VUs    0m50.9s/1m05.0s
+search      [  78% ] 5/5 VUs    0m50.9s/1m05.0s
+websocket   [  78% ] 5/5 VUs    0m50.9s/1m05.0s
+
+running (0m52.0s), 33/33 VUs, 13820 complete and 0 interrupted iterations
+browse      [  80% ] 15/15 VUs  0m51.9s/1m05.0s
+read_one    [  80% ] 8/8 VUs    0m51.9s/1m05.0s
+search      [  80% ] 5/5 VUs    0m51.9s/1m05.0s
+websocket   [  80% ] 5/5 VUs    0m51.9s/1m05.0s
+
+running (0m53.0s), 33/33 VUs, 14119 complete and 0 interrupted iterations
+browse      [  81% ] 15/15 VUs  0m52.9s/1m05.0s
+read_one    [  81% ] 8/8 VUs    0m52.9s/1m05.0s
+search      [  81% ] 5/5 VUs    0m52.9s/1m05.0s
+websocket   [  81% ] 5/5 VUs    0m52.9s/1m05.0s
+
+running (0m54.0s), 33/33 VUs, 14423 complete and 0 interrupted iterations
+browse      [  83% ] 15/15 VUs  0m53.9s/1m05.0s
+read_one    [  83% ] 8/8 VUs    0m53.9s/1m05.0s
+search      [  83% ] 5/5 VUs    0m53.9s/1m05.0s
+websocket   [  83% ] 5/5 VUs    0m53.9s/1m05.0s
+
+running (0m55.0s), 33/33 VUs, 14733 complete and 0 interrupted iterations
+browse      [  84% ] 15/15 VUs  0m54.9s/1m05.0s
+read_one    [  84% ] 8/8 VUs    0m54.9s/1m05.0s
+search      [  84% ] 5/5 VUs    0m54.9s/1m05.0s
+websocket   [  84% ] 5/5 VUs    0m54.9s/1m05.0s
+
+running (0m56.0s), 32/33 VUs, 15027 complete and 0 interrupted iterations
+browse      [  86% ] 14/15 VUs  0m55.9s/1m05.0s
+read_one    [  86% ] 8/8 VUs    0m55.9s/1m05.0s
+search      [  86% ] 5/5 VUs    0m55.9s/1m05.0s
+websocket   [  86% ] 5/5 VUs    0m55.9s/1m05.0s
+
+running (0m57.0s), 30/33 VUs, 15313 complete and 0 interrupted iterations
+browse      [  88% ] 13/15 VUs  0m56.9s/1m05.0s
+read_one    [  88% ] 7/8 VUs    0m56.9s/1m05.0s
+search      [  88% ] 5/5 VUs    0m56.9s/1m05.0s
+websocket   [  88% ] 5/5 VUs    0m56.9s/1m05.0s
+
+running (0m58.0s), 25/33 VUs, 15556 complete and 0 interrupted iterations
+browse      [  89% ] 11/15 VUs  0m57.9s/1m05.0s
+read_one    [  89% ] 6/8 VUs    0m57.9s/1m05.0s
+search      [  89% ] 4/5 VUs    0m57.9s/1m05.0s
+websocket   [  89% ] 4/5 VUs    0m57.9s/1m05.0s
+
+running (0m59.0s), 23/33 VUs, 15766 complete and 0 interrupted iterations
+browse      [  91% ] 10/15 VUs  0m58.9s/1m05.0s
+read_one    [  91% ] 5/8 VUs    0m58.9s/1m05.0s
+search      [  91% ] 4/5 VUs    0m58.9s/1m05.0s
+websocket   [  91% ] 4/5 VUs    0m58.9s/1m05.0s
+
+running (1m00.0s), 19/33 VUs, 15952 complete and 0 interrupted iterations
+browse      [  92% ] 08/15 VUs  0m59.9s/1m05.0s
+read_one    [  92% ] 5/8 VUs    0m59.9s/1m05.0s
+search      [  92% ] 3/5 VUs    0m59.9s/1m05.0s
+websocket   [  92% ] 3/5 VUs    0m59.9s/1m05.0s
+
+running (1m01.0s), 17/33 VUs, 16111 complete and 0 interrupted iterations
+browse      [  94% ] 07/15 VUs  1m00.9s/1m05.0s
+read_one    [  94% ] 4/8 VUs    1m00.9s/1m05.0s
+search      [  94% ] 3/5 VUs    1m00.9s/1m05.0s
+websocket   [  94% ] 3/5 VUs    1m00.9s/1m05.0s
+
+running (1m02.0s), 12/33 VUs, 16232 complete and 0 interrupted iterations
+browse      [  95% ] 05/15 VUs  1m01.9s/1m05.0s
+read_one    [  95% ] 3/8 VUs    1m01.9s/1m05.0s
+search      [  95% ] 2/5 VUs    1m01.9s/1m05.0s
+websocket   [  95% ] 2/5 VUs    1m01.9s/1m05.0s
+
+running (1m03.0s), 10/33 VUs, 16332 complete and 0 interrupted iterations
+browse      [  97% ] 04/15 VUs  1m02.9s/1m05.0s
+read_one    [  97% ] 2/8 VUs    1m02.9s/1m05.0s
+search      [  97% ] 2/5 VUs    1m02.9s/1m05.0s
+websocket   [  97% ] 2/5 VUs    1m02.9s/1m05.0s
+
+running (1m04.0s), 05/33 VUs, 16408 complete and 0 interrupted iterations
+browse      [  98% ] 02/15 VUs  1m03.9s/1m05.0s
+read_one    [  98% ] 1/8 VUs    1m03.9s/1m05.0s
+search      [  98% ] 1/5 VUs    1m03.9s/1m05.0s
+websocket   [  98% ] 1/5 VUs    1m03.9s/1m05.0s
+
+running (1m05.0s), 04/33 VUs, 16446 complete and 0 interrupted iterations
+browse      [ 100% ] 01/15 VUs  1m04.9s/1m05.0s
+read_one    [ 100% ] 1/8 VUs    1m04.9s/1m05.0s
+search      [ 100% ] 1/5 VUs    1m04.9s/1m05.0s
+websocket   [ 100% ] 1/5 VUs    1m04.9s/1m05.0s
+
+================ k6 SUMMARY — comments-spa ================
+dataset totalComments (setup) : see RUN bookkeeping / perf/report.md
+http_reqs                     : 13675
+http_req_duration avg         : 6.51ms
+http_req_duration p(95)       : 21.98ms
+http_req_duration p(99)       : 42.54ms
+http_req_duration max         : 120.23ms
+http_req_failed               : 0.00%
+checks                        : 100.00%
+ws_connect_ms p(95)           : 190.00ms
+
+--- per-scenario http_req_duration (p95 / p99) ---
+  browse       p95=20.28ms  p99=47.57ms
+  create       p95=0.00ms  p99=0.00ms
+  read_one     p95=23.48ms  p99=36.37ms
+  search       p95=21.29ms  p99=34.50ms
+
+--- thresholds ---
+  [PASS] http_req_duration{scenario:create}: p(95)<800
+  [PASS] http_req_duration{scenario:create}: p(99)<2000
+  [PASS] http_req_duration: p(95)<500
+  [PASS] http_req_duration: p(99)<1500
+  [PASS] ws_connect_ms: p(95)<500
+  [PASS] checks: rate>0.99
+  [PASS] http_req_duration{scenario:browse}: p(95)<500
+  [PASS] http_req_duration{scenario:browse}: p(99)<1500
+  [PASS] http_req_failed: rate<0.01
+  [PASS] http_req_duration{scenario:search}: p(95)<500
+  [PASS] http_req_duration{scenario:search}: p(99)<1500
+  [PASS] http_req_duration{scenario:read_one}: p(95)<500
+  [PASS] http_req_duration{scenario:read_one}: p(99)<1500
+==========================================================
+
+running (1m05.2s), 00/33 VUs, 16454 complete and 0 interrupted iterations
+browse    ✓ [ 100% ] 00/15 VUs  1m5s
+read_one  ✓ [ 100% ] 0/8 VUs    1m5s
+search    ✓ [ 100% ] 0/5 VUs    1m5s
+websocket ✓ [ 100% ] 0/5 VUs    1m5s
+[run] k6 exit=0
+[run] raw results:
+-rw-r--r-- 1 gab    gab       469 Oct  4 15:59 /home/gab/projects/comments-spa/perf/results/env-lead-accept-100k.txt
+-rw-r--r-- 1 gab    gab     20487 Oct  4 16:00 /home/gab/projects/comments-spa/perf/results/k6-lead-accept-100k.log
+-rw-r--r-- 1 gab    gab      6682 Oct  4 16:00 /home/gab/projects/comments-spa/perf/results/stats-lead-accept-100k.log
+-rw-r--r-- 1 nobody nogroup 14981 Oct  4 16:00 /home/gab/projects/comments-spa/perf/results/summary-lead-accept-100k.json
+EXIT=0
+### summary
+=== perf/results/summary-lead-accept-100k.json ===
+run_duration        : 65.24s
+http_reqs           : 13675
+RPS (whole run)     : 209.6
+http_req_duration   : avg=6.51ms p95=21.98ms p99=42.54ms max=120.23ms
+http_req_failed     : 0.00%
+checks              : 100.00%
+ws_connect_ms       : p95=190.00ms max=201.00ms
+ws_hello_received   : 2785
+
+-- per scenario --
+scenario            p95        p99        avg        max
+browse          20.28ms    47.57ms     5.54ms   120.23ms
+create           0.00ms     0.00ms     0.00ms     0.00ms
+read_one        23.48ms    36.37ms     7.96ms    71.33ms
+search          21.29ms    34.50ms     7.45ms    50.21ms
+
+-- thresholds --
+[PASS] http_req_duration: p(95)<500
+[PASS] http_req_duration: p(99)<1500
+[PASS] ws_connect_ms: p(95)<500
+[PASS] checks: rate>0.99
+[PASS] http_req_duration{scenario:browse}: p(99)<1500
+[PASS] http_req_duration{scenario:browse}: p(95)<500
+[PASS] http_req_failed: rate<0.01
+[PASS] http_req_duration{scenario:search}: p(99)<1500
+[PASS] http_req_duration{scenario:search}: p(95)<500
+[PASS] http_req_duration{scenario:read_one}: p(95)<500
+[PASS] http_req_duration{scenario:read_one}: p(99)<1500
+[PASS] http_req_duration{scenario:create}: p(95)<800
+[PASS] http_req_duration{scenario:create}: p(99)<2000
+search_hits         : 158
+

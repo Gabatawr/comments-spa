@@ -1,79 +1,49 @@
-# SPA «Комментарии» / Comments SPA
+# SPA «Комментарии» / Comments SPA — этап Middle+
 
-Тестовое задание: SPA-приложение для комментариев с каскадным отображением,
-серверной/клиентской валидацией, CAPTCHA, загрузкой файлов, защитой от XSS и
-SQL-инъекций. Реализован **базовый уровень + Junior+** (Queue, Cache, Events,
-WebSocket) и заложена архитектура под Middle/Middle+ (см. `docs/ARCHITECTURE.md`).
+Тестовое задание: SPA-приложение для комментариев с каскадным отображением ответов,
+серверной и клиентской валидацией, CAPTCHA, вложениями, защитой от XSS/SQL-инъекций.
+Второй этап доводит проект до **базового уровня + Junior+ + Middle** и закладывает
+**Middle+** (архитектура под 1 000 000 сообщений / 100 000 пользователей в сутки),
+подтверждённый реально прогнанным нагрузочным тестом **k6**.
 
-> Оригинальное ТЗ: [`TASK.md`](TASK.md), полный текст — `docs/source/task-raw.txt`,
-> образец интерфейса — `docs/task/page1-X10.png`.
+| Документ | Что это |
+|---|---|
+| [`docs/API-v2.md`](docs/API-v2.md) | **Замороженный контракт v2**: REST, GraphQL, события, модель данных, IP/User-Agent, сортировка/пагинация |
+| [`docs/API.md`](docs/API.md) | Контракт v1 (предыдущий этап) |
+| [`docs/ARCHITECTURE-v2.md`](docs/ARCHITECTURE-v2.md) | Clean Architecture, порты/адаптеры, точки подмены под облако |
+| [`docs/target-middle-plus.md`](docs/target-middle-plus.md) | Полная спецификация этого этапа |
+| [`TASK.md`](TASK.md) | Исходное ТЗ |
+| [`docs/qa/report-v2.md`](docs/qa/report-v2.md) | Отчёт приёмки с реальными цифрами и честным списком пробелов |
+| [`docs/qa/checklist-v2.md`](docs/qa/checklist-v2.md) | Матрица требований с доказательствами |
 
 ---
 
 ## Стек
 
 | Слой | Технология |
-|------|-----------|
-| Backend | .NET 10 (ASP.NET Core), EF Core 10, SQLite (по умолчанию) |
-| Frontend | SPA без сборки: ES-модули + CSS (см. «Почему без фреймворка») |
-| Файлы | SixLabors.ImageSharp (пропорциональное уменьшение изображений) |
-| Junior+ | `System.Threading.Channels` (Queue), `IMemoryCache` (Cache), in-process Event Bus (Events), `System.Net.WebSockets` (WebSocket) |
-| Контейнеризация | Docker (multi-stage), docker compose |
-| Тесты | xUnit + `Microsoft.AspNetCore.Mvc.Testing`, curl-e2e |
+|---|---|
+| Backend | .NET 10 (ASP.NET Core minimal APIs), **Clean Architecture**: `Comments.Domain` → `Comments.Application` → `Comments.Infrastructure` / `Comments.Api` |
+| БД | **PostgreSQL 16** через EF Core 10 + Npgsql, миграции в репозитории, идемпотентное применение при старте |
+| Frontend | **Angular** (standalone components), сборка multi-stage в Docker, отдаётся nginx |
+| Кэш (Middle) | **Redis 7** (страницы/счётчики/CAPTCHA), память — fallback |
+| Брокер (Middle) | **RabbitMQ 3** (topic exchange, доменные события, DLQ + retry), in-process шина — fallback |
+| Graph (Middle) | **GraphQL** (HotChocolate) рядом с REST |
+| Поиск (Middle) | **Elasticsearch 8** (индексация по событию, отдельный поисковый эндпоинт) |
+| Middle+ | keyset-пагинация, индексы, батч-seed, кэш горячих страниц, асинхронная обработка, горизонтальная масштабируемость (состояние вне процесса) |
+| Нагрузка | **k6** (compose-профиль `load`), реально прогнанный сценарий с p95/p99 |
+| Контейнеризация | Docker (multi-stage), docker compose (один стек) |
+| Тесты | xUnit + `Microsoft.AspNetCore.Mvc.Testing` против **реального PostgreSQL**, curl/GraphQL e2e, браузерная проверка Angular |
 
-**Почему SPA без фреймворка.** ТЗ разрешает любой frontend («на ваш выбор»).
-Выбран вариант без сборки, потому что он гарантирует требование «проект
-поднимается с нуля строго по README»: нет `node_modules`, нет шага сборки,
-один контейнер и один origin для API и UI. Вся логика разбита на ES-модули
-(`src/Frontend/js/*.js`), реализован полноценный SPA-роутинг состоянием.
-
----
-
-## Возможности
-
-### Базовый уровень
-- **Форма добавления**: User Name (только латиница+цифры, обязательное),
-  E-mail (формат, обязательное), Home page (URL, необязательное), CAPTCHA
-  (картинка PNG, цифры+латинские буквы, обязательное), Text (обязательное).
-- **CAPTCHA**: 6 символов, PNG, one-time, TTL 5 минут, ответ никогда не
-  отдаётся клиенту, кнопка обновления.
-- **Главная страница**:
-  - заглавные комментарии — **таблицей** с сортировкой по User Name, E-mail и
-    дате **в обе стороны** (клик по заголовку переключает направление);
-  - **каскадное** отображение ответов: вложенность с отступом и левой
-    полосой-цитатой (как на образце);
-  - пагинация по **25** сообщений;
-  - сортировка по умолчанию — **LIFO** (дата по убыванию).
-- **Файлы**: к комментарию можно приложить картинку **или** TXT.
-  - JPG/GIF/PNG; изображения больше 320×240 **пропорционально уменьшаются**
-    сервером (без апскейла);
-  - TXT ≤ **100 КБ**;
-  - просмотр с визуальными эффектами: lightbox для картинок, модальное окно
-    для текста.
-- **HTML-теги**: разрешены только `a[href,title]`, `code`, `i`, `strong`;
-  проверка закрытия тегов, результат — валидный XHTML.
-- **Клиент + сервер**: клиентская валидация с подсказками и серверная
-  валидация; ошибки сервера раскладываются по полям.
-- **AJAX-предпросмотр** сообщения без перезагрузки страницы.
-- **Панель кнопок** `[i]`, `[strong]`, `[code]`, `[a]`.
-- **Безопасность**: экранирование/allowlist-санитайз HTML (XSS), только
-  параметризованные запросы EF Core (SQL-инъекции), `X-Content-Type-Options: nosniff`.
-- **CSS-дизайн** в стиле образца.
-
-### Junior+
-- **Queue** — `Channel<CommentCreatedNotification>` + `BackgroundService`:
-  HTTP-ответ не ждёт постобработки события.
-- **Cache** — `IMemoryCache` для CAPTCHA и страниц списка, инвалидация по событию.
-- **Events** — внутрипроцессная шина `IEventBus`, событие `CommentCreatedEvent`
-  (обновление кэша, WebSocket-broadcast, лог).
-- **WebSocket** — `/ws`: `hello` при подключении, broadcast `comment.created`,
-  ping/pong, счётчик клиентов в `/api/health`.
+Cloud-ready без облака: все внешние зависимости спрятаны за портами в `Comments.Application`,
+реализации локальные, точки подмены (S3/Azure Blob, Service Bus, ElastiCache, OpenSearch,
+Cloud SQL) задокументированы в [`docs/API-v2.md`](docs/API-v2.md) §11 и
+[`docs/ARCHITECTURE-v2.md`](docs/ARCHITECTURE-v2.md). **Никаких реальных вызовов облачных API.**
 
 ---
 
-## Быстрый старт
+## Быстрый старт (Docker)
 
-### Вариант A — Docker (рекомендуется)
+Нужен только Docker с плагином compose.
 
 ```bash
 git clone <URL-репозитория> comments-spa
@@ -81,75 +51,129 @@ cd comments-spa
 docker compose up --build -d
 ```
 
-Открыть: **http://localhost:8080**
+Поднимается весь стек: `api`, `web` (nginx + Angular), `postgres`, `redis`, `rabbitmq`,
+`elasticsearch`. Дождитесь, пока все сервисы станут `healthy`:
 
 ```bash
-curl http://localhost:8080/api/health
-docker compose logs -f comments
-docker compose down          # остановить (данные остаются в volume)
-docker compose down -v       # остановить и удалить данные
+docker compose ps
 ```
-
-### Вариант B — локально, без Docker
-
-Требуется **.NET SDK 10**.
-
-```bash
-git clone <URL-репозитория> comments-spa
-cd comments-spa
-./scripts/run-dev.sh          # Development, http://localhost:5080
-```
-
-Либо напрямую:
-
-```bash
-ASPNETCORE_ENVIRONMENT=Development \
-  dotnet run --project src/Backend/CommentsApi/CommentsApi.csproj --urls http://localhost:5080
-```
-
-При первой сборке backend сам копирует `src/Frontend/**` в `wwwroot`
-(MSBuild-таргет `CopySpaToWwwroot`), поэтому SPA доступен с того же origin.
-
-### Возможные проблемы
-
-| Симптом | Решение |
-|---------|---------|
-| `docker compose build` падает с `read-only file system` в `~/.docker/buildx` | Состояние buildx недоступно для записи (частая ситуация в песочницах/CI). Укажите свой каталог: `BUILDX_CONFIG="$PWD/.buildx" docker compose build` |
-| `dotnet restore` не может писать в `~/.nuget/packages` | Уже решено корневым `NuGet.config` (кеш в `.nuget/packages/`). Каталог можно удалить — он восстановится при следующем restore |
-| Порт 8080 занят | Измените маппинг в `docker-compose.yml` (`"8090:8080"`) или запустите локально на другом порту: `./scripts/run-dev.sh 5090` |
-| Контейнер `unhealthy` | `docker compose logs comments` — приложение пишет причину (обычно права на `/app/data` или `/app/storage`) |
-
-### URL-ы
 
 | URL | Назначение |
-|-----|-----------|
-| `http://localhost:8080/` (Docker) / `:5080/` (dev) | SPA |
-| `/api/health` | health-check (db, cache, queue, websocket) |
-| `/api/captcha` | получить CAPTCHA |
-| `/api/comments` | список корневых комментариев (сортировка/пагинация) |
-| `/api/comments/{id}` | комментарий с деревом ответов |
-| `/api/attachments/{id}` | файл вложения |
-| `/ws` | WebSocket |
-| `/swagger` | OpenAPI UI (только Development) |
+|---|---|
+| <http://localhost:8080> | **SPA (Angular)** |
+| <http://localhost:8080/api/health> | health-check через nginx |
+| <http://localhost:8081/api/health> | health API напрямую |
+| <http://localhost:8081/swagger> | OpenAPI UI (только Development) |
+| <http://localhost:8081/graphql> | GraphQL playground (только Development) |
+| <http://localhost:15672> | RabbitMQ management (guest/guest — локальные dev-креды) |
+| <http://localhost:59200> | Elasticsearch |
+| `ws://localhost:8080/ws` | WebSocket живых обновлений |
+
+```bash
+docker compose logs -f api web     # логи
+docker compose down                # остановить (данные в volume сохраняются)
+docker compose down -v             # остановить и удалить данные ТОЛЬКО этого проекта
+```
+
+## Самопроверка с нуля (строго по README)
+
+Полная приёмочная цепочка одной командой (чистая сборка, тесты, стек с нуля, smoke, k6):
+
+```bash
+scripts/acceptance.sh
+```
+
+Отдельные шаги:
+
+```bash
+# 1) чистая сборка + 251+ тест против реального PostgreSQL (поднимет postgres из compose)
+CLEAN=1 scripts/test.sh
+
+# 2) стек с нуля
+docker compose down -v && docker compose up --build -d
+docker compose ps
+
+# 3) e2e и нагрузка
+tests/e2e/smoke.sh http://localhost:8080
+docker compose --profile load run --rm k6 run /scripts/scenarios.js
+```
+
+> Первый запуск скачивает образы и пакеты (`postgres`, `redis`, `rabbitmq`, `elasticsearch`,
+> `node`, `dotnet`, `nginx`, `k6`) — нужен доступ в интернет. Облачные сервисы не используются.
+
+## Локальная разработка без полного стека
+
+```bash
+scripts/run-dev.sh          # API в Development на http://localhost:5080 (+ compose data services)
+```
+
+---
+
+## Возможности
+
+### Базовый уровень
+- **Форма**: User Name (латиница+цифры), E-mail, Home page (URL, необязательно), CAPTCHA, Text.
+- **CAPTCHA**: PNG, 6 символов, TTL 5 минут, одноразовая, код не покидает сервер.
+- **Главная**: корневые комментарии таблицей с сортировкой по User Name / E-mail / дате
+  в обе стороны, LIFO по умолчанию, пагинация 25.
+- **Каскад**: ответы любой вложенности, отступ + левая полоса-цитата.
+- **Вложения**: JPG/GIF/PNG (ресайз ≤ 320×240, без апскейла), TXT ≤ 100 КБ,
+  lightbox для картинок и модал для текста.
+- **HTML**: allow-list `a[href,title]`, `code`, `i`, `strong`, проверка закрытия тегов (XHTML).
+- **AJAX-предпросмотр** без перезагрузки, панель `[i] [strong] [code] [a]`,
+  клиентская валидация зеркалит серверную.
+- **Данные клиента**: IP и User-Agent сохраняются и отдаются в API;
+  за прокси IP берётся из `X-Forwarded-For` (первый хоп).
+- **Безопасность**: allow-list санитайзер (XSS), только параметризованный LINQ (SQLi),
+  `X-Content-Type-Options: nosniff`.
+
+### Junior+
+- **Queue** — фоновая обработка создания комментария, HTTP-ответ не ждёт постобработки.
+- **Cache** — кэш страниц/элементов/CAPTCHA, инвалидация по событию.
+- **Events** — доменные события `CommentCreated` и др.
+- **WebSocket** — `/ws`: `hello`, `comment.created`, ping/pong.
+
+### Middle
+- **Redis** — кэш страниц с версионной инвалидацией (работает между инстансами API).
+- **RabbitMQ** — публикация доменных событий в topic-exchange, отдельные консьюмеры
+  (WebSocket-broadcast, индексация в Elasticsearch, инвалидация кэша), **DLQ + retry**.
+- **GraphQL** — `comments`, `comment`, `search`, `createComment` (см. `docs/API-v2.md` §5).
+- **Elasticsearch** — полнотекстовый поиск `/api/search` с подсветкой, индексация по событию.
+
+### Middle+ (архитектура + измерения)
+- Индексы под сортировки/LIFO/дерево, отсутствие N+1 (BFS-выборка по уровням).
+- **Keyset-пагинация** без `OFFSET` на глубоких страницах (`cursor`), offset сохранён для ТЗ.
+- Батч-вставка и seed-эндпоинт для наполнения базы (100k…1M записей).
+- Кэширование горячих страниц, асинхронная обработка через брокер.
+- Горизонтальная масштабируемость: состояние в PostgreSQL/Redis/RabbitMQ, не в памяти процесса.
+- **Нагрузочный тест k6** — реально прогнан, цифры в [`docs/qa/report-v2.md`](docs/qa/report-v2.md).
 
 ---
 
 ## Структура репозитория
 
 ```
-src/Backend/CommentsApi/   # .NET 10 API + EF Core + Queue/Cache/Events/WS
-src/Frontend/              # SPA (index.html, css/, js/) — без сборки
-tests/CommentsApi.Tests/   # xUnit: санитайзер, валидация, API, безопасность
-tests/e2e/smoke.sh         # curl e2e против запущенного приложения
-db/schema.sql              # схема БД для MySQL Workbench (+ db/schema.md)
-docs/API.md                # зафиксированный контракт API
-docs/ARCHITECTURE.md       # архитектура, модель данных, Junior+/Middle
-docs/qa/checklist.md       # чек-лист требований с доказательствами
-docs/qa/report.md          # итоговый отчёт верификации
-Dockerfile                 # multi-stage сборка
-docker-compose.yml         # стек
-scripts/run-dev.sh         # локальный запуск
-scripts/smoke.sh           # быстрый smoke (делегирует в tests/e2e)
+src/Backend/Comments.Domain/          # сущности, доменные события — без инфраструктуры
+src/Backend/Comments.Application/     # use-cases, DTO, валидация, порты
+src/Backend/Comments.Infrastructure/  # EF/Npgsql, Redis, RabbitMQ, Elasticsearch, FS, CAPTCHA
+src/Backend/Comments.Api/             # endpoints, GraphQL, WebSocket, DI, Dockerfile
+src/Frontend/                         # Angular SPA + Dockerfile + nginx.conf
+db/schema.sql                         # схема для MySQL Workbench (прошлый этап)
+db/schema-postgres.sql                # PostgreSQL-схема (этот этап)
+docs/API-v2.md                        # замороженный контракт v2
+docs/ARCHITECTURE-v2.md               # Clean Architecture, порты, точки подмены
+docs/qa/report-v2.md                  # отчёт приёмки (реальные измерения)
+docs/qa/checklist-v2.md               # матрица требований
+perf/                                 # k6-сценарии, seed, результаты
+infra/                                # конфиги postgres/redis/rabbitmq/elasticsearch
+tests/CommentsApi.Tests/              # xUnit против PostgreSQL
+tests/e2e/                            # curl/GraphQL e2e
+tests/frontend/                       # браузерная проверка Angular
+scripts/test.sh                       # тесты против PostgreSQL
+scripts/run-dev.sh                    # локальный API
+scripts/acceptance.sh                 # полная приёмка
+docker-compose.yml                    # весь стек + профили load/tools
+Comments.slnx                         # .NET-решение
 ```
 
 ---
@@ -157,86 +181,50 @@ scripts/smoke.sh           # быстрый smoke (делегирует в tests
 ## Тесты
 
 ```bash
-# 1) Модульные + интеграционные тесты (WebApplicationFactory, отдельная БД на тест)
-dotnet test tests/CommentsApi.Tests/CommentsApi.Tests.csproj
+# полный набор против реального PostgreSQL (251 тест прошлого этапа + новые)
+CLEAN=1 scripts/test.sh
 
-# 2) e2e против запущенного приложения (Development: нужен dev-CAPTCHA peek)
-./scripts/run-dev.sh &                       # либо docker compose up
-tests/e2e/smoke.sh http://localhost:5080
+# только unit-часть
+scripts/test.sh --filter "FullyQualifiedName~CommentValidatorUnitTests"
 
-# 3) DOM-харнесс frontend (jsdom, реальные ES-модули против живого API)
-cd tests/frontend && npm install
-BASE=http://127.0.0.1:5080 node dom-harness.mjs
+# e2e против запущенного стека
+tests/e2e/smoke.sh http://localhost:8080
 ```
 
-Подробности по запуску и требованиям — в [`tests/README.md`](tests/README.md).
-
-### Результаты верификации (итоговый прогон)
-
-| Проверка | Результат |
-|----------|-----------|
-| xUnit: `dotnet test tests/CommentsApi.Tests/CommentsApi.Tests.csproj` | **251 passed / 0 failed / 0 skipped** |
-| e2e `tests/e2e/smoke.sh` (контейнер Docker, Development) | **38 PASS / 0 FAIL / 0 SKIP**, exit 0 |
-| DOM-харнесс frontend (jsdom) | **31 PASS / 0 FAIL**, exit 0 |
-| `docker compose up` → `/api/health` | `healthy`, `{"status":"ok",...}` |
-| Production-контейнер: `/api/dev/captcha/*` | **404** (dev-хук выключен) |
-
-Чек-лист соответствия требованиям с доказательствами: [`docs/qa/checklist.md`](docs/qa/checklist.md),
-итоговый отчёт верификации: [`docs/qa/report.md`](docs/qa/report.md).
-
-> **NuGet.** Корневой [`NuGet.config`](NuGet.config) держит глобальный кеш пакетов внутри
-> репозитория (`.nuget/packages/`), поэтому `dotnet restore/build/test` работают даже там, где
-> пользовательский кеш `~/.nuget/packages` недоступен для записи. Папка git-ignored;
-> первый restore скачивает пакеты из nuget.org.
-
----
-
-## Схема БД
-
-- `db/schema.sql` — MySQL-диалект, открывается в **MySQL Workbench**
-  (`File → Open SQL Script`).
-- `db/schema.md` — соответствие MySQL ↔ SQLite и объяснение отличий.
-- Рабочая БД — SQLite (`comments.db` или `/app/data/comments.db` в Docker),
-  схема создаётся EF Core-миграцией при старте.
+Тестовая инфраструктура поднимает отдельную БД `comments_test_<guid>` на сервере
+`COMMENTS_TEST_POSTGRES` (по умолчанию `localhost:55432`, user/password/db `comments`) и удаляет
+её после прогона. Одна и та же схема создаётся EF Core-миграциями, что и в production.
 
 ---
 
 ## Конфигурация
 
-| Переменная окружения | По умолчанию | Назначение |
-|----------------------|--------------|-----------|
-| `ConnectionStrings__Default` | `Data Source=comments.db` | строка подключения БД |
-| `Storage__Root` | `storage/` | каталог вложений |
-| `ASPNETCORE_URLS` | `http://+:8080` (Docker) | адрес прослушивания |
-| `Features__DevCaptchaPeek` | Development: `true`, Production: `false` | dev-эндпоинт подсказки CAPTCHA |
-| `ASPNETCORE_ENVIRONMENT` | Docker: `Production` | окружение |
+Все значения — через переменные окружения / `appsettings`; секретов в репозитории нет
+(только `.env.example` с локальными dev-дефолтами). Полная таблица — `docs/API-v2.md` §10.
 
-### Безопасность dev-хука
-`GET /api/dev/captcha/{id}` возвращает код CAPTCHA и существует **только** при
-`ASPNETCORE_ENVIRONMENT=Development` **и** `Features__DevCaptchaPeek=true`
-(в Production по умолчанию выключен). Нужен исключительно для автоматических
-тестов и e2e; в продакшене эндпоинт недоступен.
-
----
-
-## Покрытие уровней
-
-| Уровень | Статус | Комментарий |
-|---------|--------|-------------|
-| Базовый | ✅ реализован | все функциональные требования ТЗ |
-| Junior+ | ✅ реализован | Queue, Cache, Events, WebSocket |
-| Middle | 🟡 заложено | интерфейсы-точки расширения, схема и описание в `docs/ARCHITECTURE.md`; внешние сервисы (RabbitMQ, Redis, Elasticsearch, cloud) не поднимаются |
-| Middle+ | 🟡 заложено | архитектурные решения под 1M сообщений/100k пользователей описаны в `docs/ARCHITECTURE.md`; нагрузочный тест не входит в зону |
+| Переменная | Значение по умолчанию (compose) | Назначение |
+|---|---|---|
+| `ConnectionStrings__Default` | `Host=postgres;Database=comments;Username=comments;Password=comments` | PostgreSQL |
+| `Redis__ConnectionString` | `redis:6379` | кэш |
+| `RabbitMq__ConnectionString` | `amqp://guest:guest@rabbitmq:5672/` | брокер |
+| `Elastic__Url` | `http://elasticsearch:9200` | поиск |
+| `Storage__Provider` | `filesystem` | хранилище файлов (S3/Azure — точка подмены) |
+| `Cache__Provider` | `redis` | `redis` \| `memory` |
+| `Messaging__Provider` | `rabbitmq` | `rabbitmq` \| `inmemory` |
+| `Search__Enabled` | `true` | Elasticsearch вкл/выкл |
+| `Proxy__TrustAll` | `true` | доверять `X-Forwarded-For` от nginx |
+| `Features__DevCaptchaPeek` | `false` | dev-ручка подсказки CAPTCHA |
+| `Features__Seed` | `false` | dev-ручка массового наполнения |
 
 ---
 
 ## Известные ограничения / вне зоны
 
-- **Развёртывание на хостинге/VDS** — по условию задачи вне зоны автоматизации
-  (требует внешних аккаунтов). Docker-упаковка выполнена и проверена локально.
-- **Middle-сервисы** (GraphQL, брокер, NoSQL, cloud) не реализованы, только
-  точки расширения и проектные решения.
-- **Нагрузочный тест** под 1M/100k не проводился.
-- SQLite выбран по умолчанию из требований ТЗ; переход на MS SQL/PostgreSQL
-  описан в `docs/ARCHITECTURE.md`.
-- Запись видео-демо развёрнутого приложения — ручной шаг вне репозитория.
+- **Развёртывание на хостинге/VDS** — вне зоны задания (нет аккаунтов). Docker-упаковка
+  и запуск на хосте проверены; инструкция по облаку — только как точки подмены.
+- **Облачные сервисы** (S3, Azure Blob/Service Bus/Cache, OpenSearch) — не вызываются;
+  реализованы локальные адаптеры за интерфейсами-портами.
+- **1 000 000 сообщений** — архитектура рассчитана и проверена seed-эндпоинтом и k6;
+  фактический объём датасета указан в отчёте (не все величины достигнуты на этой машине).
+- SQLite/MySQL прошлого этапа в рабочем пути не используются; PostgreSQL — единственная БД.
+- Актуальный честный список пробелов — в [`docs/qa/report-v2.md`](docs/qa/report-v2.md).

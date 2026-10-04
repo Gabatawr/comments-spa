@@ -1,0 +1,25 @@
+>> cleaning bin/obj
+>> ensuring PostgreSQL (postgres) is running
+ Container comments-spa-postgres Running 
+>> waiting for PostgreSQL to become healthy
+>> COMMENTS_TEST_POSTGRES=Host=localhost;Port=55432;Username=comments;Password=comments;Database=postgres;Include Error Detail=true
+>> dotnet test
+  Determining projects to restore...
+  Restored /home/gab/projects/comments-spa/src/Backend/Comments.Domain/Comments.Domain.csproj (in 119 ms).
+  Restored /home/gab/projects/comments-spa/src/Backend/Comments.Application/Comments.Application.csproj (in 284 ms).
+  Restored /home/gab/projects/comments-spa/src/Backend/Comments.Api/Comments.Api.csproj (in 306 ms).
+  Restored /home/gab/projects/comments-spa/tests/CommentsApi.Tests/CommentsApi.Tests.csproj (in 315 ms).
+  Restored /home/gab/projects/comments-spa/src/Backend/Comments.Infrastructure/Comments.Infrastructure.csproj (in 343 ms).
+  Comments.Domain -> /home/gab/projects/comments-spa/src/Backend/Comments.Domain/bin/Debug/net10.0/Comments.Domain.dll
+  Comments.Application -> /home/gab/projects/comments-spa/src/Backend/Comments.Application/bin/Debug/net10.0/Comments.Application.dll
+  Comments.Infrastructure -> /home/gab/projects/comments-spa/src/Backend/Comments.Infrastructure/bin/Debug/net10.0/Comments.Infrastructure.dll
+  Comments.Api -> /home/gab/projects/comments-spa/src/Backend/Comments.Api/bin/Debug/net10.0/Comments.Api.dll
+  CommentsApi.Tests -> /home/gab/projects/comments-spa/tests/CommentsApi.Tests/bin/Debug/net10.0/CommentsApi.Tests.dll
+Test run for /home/gab/projects/comments-spa/tests/CommentsApi.Tests/bin/Debug/net10.0/CommentsApi.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.2 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   265, Skipped:     0, Total:   265, Duration: 6 m 52 s - CommentsApi.Tests.dll (net10.0)
+EXIT=0
