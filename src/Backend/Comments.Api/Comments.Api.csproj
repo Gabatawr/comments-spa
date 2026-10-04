@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Comments.Api</RootNamespace>
+    <AssemblyName>Comments.Api</AssemblyName>
+    <Version>2.0.0</Version>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Comments.Application\Comments.Application.csproj" />
+    <ProjectReference Include="..\Comments.Infrastructure\Comments.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GraphQL endpoint (docs/API-v2.md §5). HotChocolate 15 targets net8/net9 and runs on net10. -->
+    <PackageReference Include="HotChocolate.AspNetCore" Version="15.1.18" />
+    <!-- Query cost analysis: limit complexity to 300 (docs/API-v2.md §5). -->
+    <PackageReference Include="HotChocolate.CostAnalysis" Version="15.1.18" />
+    <!-- Swagger UI in Development (same package/version as v1). -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+</Project>
