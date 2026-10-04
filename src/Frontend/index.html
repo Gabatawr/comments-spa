@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Комментарии — SPA</title>
+    <meta
+      name="description"
+      content="SPA «Комментарии»: каскадные ответы, сортируемая таблица, пагинация, CAPTCHA, предпросмотр, вложения."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app-header card">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">К</span>
+          <div class="brand-text">
+            <h1>Комментарии</h1>
+            <p class="subtitle">
+              SPA без сборки · ES-модули · REST + WebSocket
+            </p>
+          </div>
+        </div>
+        <div class="status-bar" aria-live="polite">
+          <span id="health-badge" class="health-badge">API: …</span>
+          <span id="realtime-status" class="realtime-status">WS: …</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="card form-card" aria-labelledby="form-title">
+          <h2 id="form-title">Добавить комментарий</h2>
+
+          <div id="form-general-error" class="alert alert-error" role="alert" hidden></div>
+          <div id="reply-banner" class="reply-banner" hidden>
+            <span id="reply-banner-text"></span>
+            <button type="button" id="reply-cancel" class="btn btn-ghost btn-small">
+              Отменить
+            </button>
+          </div>
+
+          <form id="comment-form" novalidate>
+            <input type="hidden" id="captchaId" name="captchaId" />
+            <input type="hidden" id="parentId" name="parentId" />
+
+            <div class="form-grid">
+              <div class="field">
+                <label for="userName">User Name <span class="req">*</span></label>
+                <input
+                  id="userName"
+                  name="userName"
+                  type="text"
+                  maxlength="50"
+                  autocomplete="nickname"
+                  placeholder="латиница и цифры, 3–50"
+                  required
+                />
+                <p class="field-error" data-error-for="userName" hidden></p>
+              </div>
+
+              <div class="field">
+                <label for="email">E-mail <span class="req">*</span></label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  maxlength="100"
+                  autocomplete="email"
+                  placeholder="user@example.com"
+                  required
+                />
+                <p class="field-error" data-error-for="email" hidden></p>
+              </div>
+
+              <div class="field">
+                <label for="homePage">Home page</label>
+                <input
+                  id="homePage"
+                  name="homePage"
+                  type="url"
+                  maxlength="200"
+                  autocomplete="url"
+                  placeholder="https://example.com (необязательно)"
+                />
+                <p class="field-error" data-error-for="homePage" hidden></p>
+              </div>
+            </div>
+
+            <div class="field field-full">
+              <label for="text">Text <span class="req">*</span></label>
+              <div id="tag-toolbar" class="tag-toolbar" role="toolbar" aria-label="Панель тегов">
+                <button type="button" class="tag-btn" data-tag="i" title="Курсив (Ctrl+I)">
+                  <i>i</i>
+                </button>
+                <button type="button" class="tag-btn" data-tag="strong" title="Жирный (Ctrl+B)">
+                  <strong>strong</strong>
+                </button>
+                <button type="button" class="tag-btn" data-tag="code" title="Код">
+                  <code>code</code>
+                </button>
+                <button type="button" class="tag-btn" data-tag="a" title="Ссылка (Ctrl+K)">
+                  a
+                </button>
+                <span class="tag-hint">
+                  Разрешены: <code>&lt;a href title&gt;</code>, <code>&lt;code&gt;</code>,
+                  <code>&lt;i&gt;</code>, <code>&lt;strong&gt;</code>
+                </span>
+              </div>
+              <textarea
+                id="text"
+                name="text"
+                rows="6"
+                maxlength="5000"
+                placeholder="Текст сообщения. Разрешены только теги a, code, i, strong."
+                required
+              ></textarea>
+              <div class="field-row">
+                <span id="text-counter" class="char-counter">0 / 5000</span>
+                <p class="field-error" data-error-for="text" hidden></p>
+              </div>
+            </div>
+
+            <div class="form-grid form-grid-captcha">
+              <div class="field">
+                <label for="captchaAnswer">CAPTCHA <span class="req">*</span></label>
+                <div class="captcha-row">
+                  <button type="button" id="captcha-refresh" class="captcha-image-btn" title="Обновить CAPTCHA">
+                    <img id="captcha-image" class="captcha-image" alt="CAPTCHA" width="180" height="60" />
+                  </button>
+                  <input
+                    id="captchaAnswer"
+                    name="captchaAnswer"
+                    type="text"
+                    maxlength="16"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="код с картинки"
+                    required
+                  />
+                  <button type="button" id="captcha-reload" class="btn btn-ghost btn-small">
+                    Обновить
+                  </button>
+                </div>
+                <p id="captcha-status" class="captcha-status"></p>
+                <p class="field-error" data-error-for="captcha" hidden></p>
+              </div>
+
+              <div class="field">
+                <label for="attachment">Вложение</label>
+                <input
+                  id="attachment"
+                  name="attachment"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.gif,.txt,image/jpeg,image/png,image/gif,text/plain"
+                />
+                <p class="field-hint">
+                  Изображение JPG/GIF/PNG ≤ 5 МБ (сервер уменьшит до 320×240) или TXT ≤ 100 КБ.
+                </p>
+                <div id="attachment-preview" class="attachment-preview" hidden></div>
+                <p id="attachment-error" class="field-error" data-error-for="attachment" hidden></p>
+              </div>
+            </div>
+
+            <section class="preview-block" aria-labelledby="preview-title">
+              <div class="preview-head">
+                <h3 id="preview-title">Предпросмотр</h3>
+                <span id="preview-badge" class="preview-badge is-empty"></span>
+              </div>
+              <div id="preview-panel" class="preview-panel is-empty">
+                Здесь появится предпросмотр сообщения.
+              </div>
+              <div id="preview-errors" class="preview-errors" role="alert" hidden></div>
+            </section>
+
+            <div class="form-actions">
+              <button type="button" id="preview-btn" class="btn btn-secondary">
+                Предпросмотр
+              </button>
+              <button type="submit" id="submit-btn" class="btn btn-primary">Отправить</button>
+              <span class="form-hint">Ctrl+Enter — предпросмотр</span>
+            </div>
+          </form>
+        </section>
+
+        <section class="card comments-card" aria-labelledby="comments-title">
+          <div class="section-head">
+            <h2 id="comments-title">Комментарии</h2>
+            <button type="button" id="comments-refresh" class="btn btn-ghost">Обновить</button>
+          </div>
+
+          <p id="comments-status" class="comments-status"></p>
+
+          <div class="table-wrap">
+            <div id="comments-loading" class="loading-overlay" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <span class="loading-text">Загрузка…</span>
+            </div>
+            <table id="comments-table" class="comments-table">
+              <thead>
+                <tr>
+                  <th data-sort="userName" class="th-sortable" scope="col" tabindex="0" aria-sort="none">
+                    User Name <span class="sort-arrow" aria-hidden="true"></span>
+                  </th>
+                  <th data-sort="email" class="th-sortable" scope="col" tabindex="0" aria-sort="none">
+                    E-mail <span class="sort-arrow" aria-hidden="true"></span>
+                  </th>
+                  <th data-sort="createdAt" class="th-sortable" scope="col" tabindex="0" aria-sort="none">
+                    Дата <span class="sort-arrow" aria-hidden="true"></span>
+                  </th>
+                  <th scope="col">Комментарий</th>
+                  <th scope="col">Файл</th>
+                  <th scope="col" class="col-actions">Действия</th>
+                </tr>
+              </thead>
+              <tbody id="comments-tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="comments-empty" class="empty-state" hidden>
+            Пока нет комментариев — станьте первым!
+          </div>
+
+          <nav id="pagination" class="pagination" aria-label="Постраничная навигация" hidden></nav>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        <span>Тестовое задание «Комментарии» · базовый уровень + Junior+</span>
+      </footer>
+    </div>
+
+    <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+    <div
+      id="lightbox"
+      class="lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-label="Просмотр изображения"
+    >
+      <button type="button" class="lightbox-close" data-lightbox-close aria-label="Закрыть">×</button>
+      <figure class="lightbox-figure">
+        <img id="lightbox-img" alt="" />
+        <figcaption id="lightbox-caption"></figcaption>
+      </figure>
+    </div>
+
+    <div
+      id="text-modal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="text-modal-title"
+    >
+      <div class="modal-window">
+        <header class="modal-head">
+          <h3 id="text-modal-title">Текстовый файл</h3>
+          <div class="modal-actions">
+            <a id="text-modal-download" class="btn btn-ghost btn-small" href="#" download>
+              Скачать
+            </a>
+            <button type="button" class="modal-close" data-modal-close aria-label="Закрыть">×</button>
+          </div>
+        </header>
+        <pre id="text-modal-body" class="modal-body"></pre>
+      </div>
+    </div>
+
+    <noscript>
+      <div class="noscript">Для работы приложения включите JavaScript.</div>
+    </noscript>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
