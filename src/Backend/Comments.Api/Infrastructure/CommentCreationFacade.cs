@@ -4,6 +4,7 @@ using Comments.Application.Abstractions.Persistence;
 using Comments.Application.Dtos;
 using Comments.Application.Services;
 using Comments.Application.Validation;
+using Comments.Domain;
 
 namespace Comments.Api.Infrastructure;
 
@@ -108,14 +109,20 @@ public sealed class CommentCreationFacade
 
         errors.AddRange("text", tagErrors);
 
+        // The parent is loaded once: it both proves existence and supplies the flat text for the
+        // functional quote snapshot (docs/DESIGN-v2.1-decisions.md §1).
+        Comment? parent = null;
         if (!string.IsNullOrEmpty(input.ParentIdError))
         {
             errors.Add("parentId", input.ParentIdError);
         }
-        else if (input.ParentId is { } parentId
-                 && !await _repository.ExistsAsync(parentId, cancellationToken))
+        else if (input.ParentId is { } parentId)
         {
-            errors.Add("parentId", CommentValidator.ErrorParentNotFound);
+            parent = await _repository.GetByIdAsync(parentId, cancellationToken);
+            if (parent is null)
+            {
+                errors.Add("parentId", CommentValidator.ErrorParentNotFound);
+            }
         }
 
         PreparedAttachment? preparedAttachment = null;
@@ -165,6 +172,7 @@ public sealed class CommentCreationFacade
                 HomePage = homePage,
                 TextHtml = html,
                 TextPlain = plain,
+                QuotedText = parent is null ? null : QuoteSnapshot.FromPlainText(parent.TextPlain),
                 ParentId = input.ParentId,
                 AttachmentId = attachmentId,
                 ClientIp = input.ClientIp,

@@ -82,6 +82,8 @@ CREATE TABLE comments (
                    COMMENT 'Sanitised HTML: allowlist a[href,title], code, i, strong; valid XHTML',
     text_plain     TEXT            NOT NULL
                    COMMENT 'Tag-stripped text (preview / table excerpt)',
+    quoted_text    TEXT            NULL
+                   COMMENT 'Reply only: snapshot of the parent flat text at creation (functional quote, <=161 chars, plain text)',
     created_at     DATETIME(6)     NOT NULL
                    COMMENT 'UTC; default sort is LIFO = created_at DESC',
     client_ip      VARCHAR(64)     NULL

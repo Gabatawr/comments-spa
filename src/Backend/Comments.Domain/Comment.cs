@@ -35,6 +35,13 @@ public class Comment
     /// <summary>Same text without any markup.</summary>
     public string TextPlain { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Snapshot of the parent's flat text captured when this reply was created
+    /// (docs/DESIGN-v2.1-decisions.md §1). Null for root comments, for legacy rows and when the
+    /// parent had no text. Plain text only — never HTML.
+    /// </summary>
+    public string? QuotedText { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>Client IPv4/IPv6 of the first trusted hop (docs/API-v2.md §6).</summary>

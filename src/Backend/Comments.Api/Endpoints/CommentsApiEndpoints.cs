@@ -624,7 +624,7 @@ public static class CommentsApiEndpoints
     {
         var assemblyVersion = typeof(Program).Assembly.GetName().Version;
         return assemblyVersion is null || assemblyVersion == new Version(0, 0, 0, 0)
-            ? "2.0.0"
+            ? "2.1.0"
             : assemblyVersion.ToString(3);
     }
 }

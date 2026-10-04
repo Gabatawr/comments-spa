@@ -32,6 +32,7 @@ public class AppDbContext : DbContext
         comment.Property(c => c.HomePage).HasColumnName("home_page").HasMaxLength(200);
         comment.Property(c => c.TextHtml).HasColumnName("text_html").HasColumnType("text").IsRequired();
         comment.Property(c => c.TextPlain).HasColumnName("text_plain").HasColumnType("text").IsRequired();
+        comment.Property(c => c.QuotedText).HasColumnName("quoted_text").HasColumnType("text");
         comment.Property(c => c.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
         comment.Property(c => c.ClientIp).HasColumnName("client_ip").HasMaxLength(64);
         comment.Property(c => c.UserAgent).HasColumnName("user_agent").HasMaxLength(512);

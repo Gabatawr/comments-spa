@@ -37,6 +37,14 @@ public sealed class CommentDto
     /// <summary>Text without tags.</summary>
     public string TextPlain { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Snapshot of the parent's flat text taken when this reply was created; null for root
+    /// comments, legacy rows and replies whose parent had no text. Plain text, never HTML.
+    /// Additive optional field (docs/DESIGN-v2.1-decisions.md §1), the frozen docs/API-v2.md is
+    /// not changed.
+    /// </summary>
+    public string? QuotedText { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public string? ClientIp { get; set; }
     public string? UserAgent { get; set; }

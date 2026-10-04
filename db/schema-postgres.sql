@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS comments (
     home_page      varchar(200) NULL,
     text_html      text         NOT NULL,   -- already sanitised (allow-list)
     text_plain     text         NOT NULL,   -- same text without markup
+    quoted_text    text         NULL,       -- reply only: snapshot of the parent's flat text
     created_at     timestamptz  NOT NULL DEFAULT now(),
     client_ip      varchar(64)  NULL,       -- first trusted hop (X-Forwarded-For)
     user_agent     varchar(512) NULL,
@@ -88,5 +89,9 @@ CREATE INDEX IF NOT EXISTS ix_attachments_sha256
 -- * Money/ids: bigint identity mirrors the JSON `id` (number) exposed by the API.
 -- * text_html/text_plain are stored post-sanitisation: the write path validates
 --   the allow-list (a[href,title], code, i, strong) and XHTML tag closure.
+-- * quoted_text is the functional quote (docs/DESIGN-v2.1-decisions.md §1): for a reply it holds
+--   a whitespace-collapsed, word-boundary-truncated snapshot (<= 161 chars) of the parent's
+--   text_plain at creation time; NULL for root comments and legacy rows. It is plain text, never
+--   HTML, so rendering only needs client-side escaping. Added by migration AddCommentQuotedText.
 -- * client_ip/user_agent are required by the assignment (client identification).
 -- * No plaintext secrets live in the database schema or the repository.
