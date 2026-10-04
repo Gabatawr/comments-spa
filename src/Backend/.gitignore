@@ -1,0 +1,4 @@
+# Local NuGet package cache.
+# The sandboxed environment mounts the user-level global NuGet cache read-only; builds use
+# NUGET_PACKAGES=<repo>/src/Backend/.nuget/packages to keep restore working.
+.nuget/

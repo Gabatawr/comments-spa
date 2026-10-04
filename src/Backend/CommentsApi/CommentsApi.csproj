@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CommentsApi</RootNamespace>
+    <AssemblyName>CommentsApi</AssemblyName>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <!--
+    SPA static hosting: copy src/Frontend/** into wwwroot before build.
+    The frontend lives outside this project (owner: frontend) and may not exist yet;
+    the target is silently skipped in that case.
+  -->
+  <Target Name="CopySpaToWwwroot" BeforeTargets="Build">
+    <ItemGroup>
+      <SpaFiles Include="$(MSBuildProjectDirectory)/../../Frontend/**/*.*"
+                Exclude="$(MSBuildProjectDirectory)/../../Frontend/**/*.map" />
+    </ItemGroup>
+    <MakeDir Directories="$(MSBuildProjectDirectory)/wwwroot" Condition="Exists('$(MSBuildProjectDirectory)/../../Frontend')" />
+    <Copy SourceFiles="@(SpaFiles)"
+          DestinationFiles="@(SpaFiles->'$(MSBuildProjectDirectory)/wwwroot/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(SpaFiles)' != ''" />
+  </Target>
+
+</Project>
