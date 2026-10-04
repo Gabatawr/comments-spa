@@ -1,0 +1,128 @@
+<div class="app">
+  <header class="app-header card">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">К</span>
+      <div class="brand-text">
+        <h1>Комментарии</h1>
+        <p class="subtitle">Angular SPA · REST v2 + WebSocket · каскад, сортировка, CAPTCHA</p>
+      </div>
+    </div>
+    <div class="status-bar" aria-live="polite">
+      <span
+        class="health-badge"
+        data-testid="health-badge"
+        [class.is-ok]="healthOk()"
+        [class.is-error]="!healthOk()"
+        [title]="healthTitle()"
+        >{{ healthLabel() }}</span
+      >
+      <span [class]="realtimeClass()" data-testid="ws-status">{{ realtimeLabel() }}</span>
+    </div>
+  </header>
+
+  <main>
+    <app-comment-form />
+    <app-comments-list />
+  </main>
+
+  <footer class="app-footer">
+    <span>Тестовое задание «Комментарии» · Angular + Clean Architecture + Middle+</span>
+  </footer>
+</div>
+
+<div class="toasts" aria-live="polite" aria-atomic="false" data-testid="toasts">
+  @for (toast of toasts.items(); track toast.id) {
+    <div
+      [class]="'toast toast-' + toast.kind + (toast.visible ? ' is-visible' : '')"
+      [attr.data-testid]="toast.testId || 'toast'"
+      [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
+    >
+      <span class="toast-text">{{ toast.message }}</span>
+      @if (toast.actionLabel) {
+        <button type="button" class="toast-action" (click)="toasts.runAction(toast)">
+          {{ toast.actionLabel }}
+        </button>
+      }
+      <button
+        type="button"
+        class="toast-close"
+        aria-label="Закрыть"
+        (click)="toasts.dismiss(toast.id)"
+      >
+        ×
+      </button>
+    </div>
+  }
+</div>
+
+@if (viewer.lightbox(); as lightbox) {
+  <div
+    class="lightbox is-open"
+    data-testid="lightbox"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Просмотр изображения"
+    (click)="onLightboxBackdrop($event)"
+  >
+    <button
+      type="button"
+      class="lightbox-close"
+      data-testid="lightbox-close"
+      aria-label="Закрыть"
+      (click)="viewer.closeLightbox()"
+    >
+      ×
+    </button>
+    <figure class="lightbox-figure">
+      <img
+        data-testid="lightbox-image"
+        [src]="lightbox.src"
+        [alt]="lightbox.caption || 'Изображение'"
+      />
+      @if (lightbox.caption) {
+        <figcaption>{{ lightbox.caption }}</figcaption>
+      }
+    </figure>
+  </div>
+}
+
+@if (viewer.textModal(); as modal) {
+  <div
+    class="modal is-open"
+    data-testid="text-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="text-modal-title"
+    (click)="onModalBackdrop($event)"
+  >
+    <div class="modal-window">
+      <header class="modal-head">
+        <h3 id="text-modal-title" data-testid="text-modal-title">{{ modal.title }}</h3>
+        <div class="modal-actions">
+          <a
+            class="btn btn-ghost btn-small"
+            data-testid="text-modal-download"
+            [href]="modal.url"
+            [attr.download]="modal.title"
+            >Скачать</a
+          >
+          <button
+            type="button"
+            class="modal-close"
+            data-testid="text-modal-close"
+            aria-label="Закрыть"
+            (click)="viewer.closeTextModal()"
+          >
+            ×
+          </button>
+        </div>
+      </header>
+      <pre
+        class="modal-body"
+        data-testid="text-modal-body"
+        [class.is-loading]="modal.loading"
+        >{{ modal.body }}</pre
+      >
+    </div>
+  </div>
+}

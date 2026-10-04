@@ -1,5 +1,5 @@
 /* =========================================================================
-   app.css — SPA «Комментарии»
+   styles.css — глобальные стили SPA «Комментарии» (Angular).
    Дизайн в духе образца docs/task/page1-X10.png: светлые карточки, шапка
    комментария с аватаром и жирным именем, каскад с левой полосой-цитатой.
    ========================================================================= */
@@ -1410,4 +1410,91 @@ h3 {
   .tag-hint {
     display: none;
   }
+}
+
+/* =========================================================================
+   Angular-слой: дополнения под standalone-компоненты
+   ========================================================================= */
+
+/* Хост рекурсивного компонента дерева должен быть блочным. */
+app-comment-node {
+  display: block;
+}
+
+.cascade > app-comment-node > .comment-card {
+  border-color: var(--border-strong);
+}
+
+.preview-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+.captcha-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 180px;
+  height: 60px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.comment-ip {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f3f7;
+}
+
+.th-sortable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.field-row {
+  align-items: flex-start;
+}
+
+.field-row .field-error {
+  text-align: right;
+}
+
+.comments-table tbody tr.detail-row:hover {
+  background: transparent;
+}
+
+.comment-card + .comment-card {
+  margin-top: 10px;
+}
+
+.comment-body strong {
+  font-weight: 700;
+}
+
+.comment-body i {
+  font-style: italic;
+}
+
+.file-chip-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.attachment-preview .attachment-thumb {
+  cursor: zoom-in;
+}
+
+.preview-panel p {
+  margin: 0 0 8px;
+}
+
+.preview-panel p:last-child {
+  margin-bottom: 0;
 }
