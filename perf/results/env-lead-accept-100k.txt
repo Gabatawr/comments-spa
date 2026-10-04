@@ -1,0 +1,9 @@
+label:            lead-accept-100k
+date_utc:         2026-10-04T15:59:37Z
+git_sha:          5e8a407
+host_nproc:       6
+host_mem_total:   11Gi
+target_rows:      100000
+base_url:         http://localhost:8081
+scenarios:        SEARCH_ENABLED=true CREATE_ENABLED=false WS_ENABLED=true
+actual_total:     {"totalComments":100000,"totalRoots":9994,"totalAttachments":5,"oldestAt":"2026-10-03T12:12:49.933455Z","newestAt":"2026-10-04T15:58:56.933455Z","cacheHitRate":0.6875}

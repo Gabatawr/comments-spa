@@ -1,0 +1,740 @@
+{
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [
+      {
+        "name": "create_flow",
+        "path": "::create_flow",
+        "id": "2ea0d127deb7e478ec6fb445c93de443",
+        "groups": [],
+        "checks": [
+            {
+              "name": "create status 201",
+              "path": "::create_flow::create status 201",
+              "id": "34af10c0be21e6332980ad5f23a82ecb",
+              "passes": 139,
+              "fails": 0
+            }
+          ]
+      }
+    ],
+    "checks": [
+      {
+        "path": "::search status 200",
+        "id": "644a0e6ab046e4cf31ebf297a7476450",
+        "passes": 2447,
+        "fails": 0,
+        "name": "search status 200"
+      },
+      {
+        "name": "websocket hello received",
+        "path": "::websocket hello received",
+        "id": "3d50c5fc88ed65ce86109dce769660f8",
+        "passes": 3724,
+        "fails": 0
+      },
+      {
+        "fails": 0,
+        "name": "read_one status 200 or 404",
+        "path": "::read_one status 200 or 404",
+        "id": "07685148da06fec906cbec98329c92d3",
+        "passes": 5430
+      },
+      {
+        "id": "d5e321808dd71775d4e81b9bf1cefe5e",
+        "passes": 5430,
+        "fails": 0,
+        "name": "read_one status 200",
+        "path": "::read_one status 200"
+      },
+      {
+        "path": "::browse status 200",
+        "id": "e542ff1dc8ea45c2813bb630606f4349",
+        "passes": 7635,
+        "fails": 0,
+        "name": "browse status 200"
+      },
+      {
+        "name": "browse has body",
+        "path": "::browse has body",
+        "id": "1d165797356de61d7d0376485af47e9b",
+        "passes": 7635,
+        "fails": 0
+      }
+    ]
+  },
+  "options": {
+    "summaryTimeUnit": "",
+    "noColor": false,
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)",
+      "p(99)"
+    ]
+  },
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 91101.144573
+  },
+  "metrics": {
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 0.0518032,
+        "p(99)": 0.21027635999999994,
+        "avg": 0.029120334881094313,
+        "min": 0.004401,
+        "med": 0.014901,
+        "max": 13.454113,
+        "p(90)": 0.037602
+      }
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 32440,
+        "fails": 0
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": true
+        }
+      }
+    },
+    "ws_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 1.9209943388829192,
+        "min": 0.297618,
+        "med": 0.9812595,
+        "max": 81.023696,
+        "p(90)": 3.9940405,
+        "p(95)": 6.164416149999998,
+        "p(99)": 13.992535389999999
+      }
+    },
+    "ws_msgs_sent": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 40.877642289290144,
+        "count": 3724
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0.66414,
+        "p(95)": 1.1687109999999965,
+        "p(99)": 3.6792139999999995,
+        "avg": 0.3268465324716076,
+        "min": 0.015901,
+        "med": 0.117507,
+        "max": 26.555998
+      }
+    },
+    "ws_msgs_received": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 3724,
+        "rate": 40.877642289290144
+      }
+    },
+    "http_req_duration{scenario:create}": {
+      "values": {
+        "min": 0.550133,
+        "med": 10.960265,
+        "max": 3198.030089,
+        "p(90)": 877.198883,
+        "p(95)": 1074.5091273999997,
+        "p(99)": 2281.8670272,
+        "avg": 294.8331469592327
+      },
+      "thresholds": {
+        "p(95)<800": {
+          "ok": false
+        },
+        "p(99)<2000": {
+          "ok": false
+        }
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 0.005501,
+        "max": 12.099931,
+        "p(90)": 0.008701,
+        "p(95)": 0.014901,
+        "p(99)": 0.04664263999999942,
+        "avg": 0.009751637510196457,
+        "min": 0.0016
+      }
+    },
+    "ws_hello_received": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 3724,
+        "rate": 40.877642289290144
+      }
+    },
+    "http_req_tls_handshaking": {
+      "contains": "time",
+      "values": {
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0
+      },
+      "type": "trend"
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "rate": 26562.256833787145,
+        "count": 2419852
+      }
+    },
+    "create_ok": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 139,
+        "rate": 1.5257766590255988
+      }
+    },
+    "http_req_duration{scenario:browse}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 20.049613,
+        "max": 2385.037511,
+        "p(90)": 65.79482960000004,
+        "p(95)": 100.92880699999976,
+        "p(99)": 924.8272288199996,
+        "avg": 48.3738468979698,
+        "min": 1.092866
+      },
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        },
+        "p(99)<1500": {
+          "ok": true
+        }
+      }
+    },
+    "vus": {
+      "contains": "default",
+      "values": {
+        "value": 4,
+        "min": 4,
+        "max": 35
+      },
+      "type": "gauge"
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 15937
+      },
+      "thresholds": {
+        "rate<0.01": {
+          "ok": true
+        }
+      }
+    },
+    "ws_sessions": {
+      "contains": "default",
+      "values": {
+        "count": 3724,
+        "rate": 40.877642289290144
+      },
+      "type": "counter"
+    },
+    "http_req_duration{scenario:search}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 7.885808427462194,
+        "min": 2.114828,
+        "med": 5.038702,
+        "max": 111.88266,
+        "p(90)": 16.1457342,
+        "p(95)": 21.981234799999992,
+        "p(99)": 43.248931939999956
+      },
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        },
+        "p(99)<1500": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration{scenario:read_one}": {
+      "contains": "time",
+      "values": {
+        "p(90)": 25.12734,
+        "p(95)": 33.61267310000001,
+        "p(99)": 56.229387870000004,
+        "avg": 12.470303972375735,
+        "min": 2.122028,
+        "med": 8.2475965,
+        "max": 1056.082555
+      },
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        },
+        "p(99)<1500": {
+          "ok": true
+        }
+      },
+      "type": "trend"
+    },
+    "iterations": {
+      "values": {
+        "count": 19375,
+        "rate": 212.67570337137394
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "rate": 174.93742888410767,
+        "count": 15937
+      }
+    },
+    "group_duration": {
+      "values": {
+        "p(95)": 2582.8053006,
+        "p(99)": 3199.513276640001,
+        "avg": 1137.213229568345,
+        "min": 335.502669,
+        "med": 970.277114,
+        "max": 3754.928569,
+        "p(90)": 2108.1855474000004
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 566162027,
+        "rate": 6214653.280742596
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(99)": 768.560299439998,
+        "avg": 36.40612977373411,
+        "min": 0.550133,
+        "med": 11.699904,
+        "max": 3198.030089,
+        "p(90)": 46.6486424,
+        "p(95)": 76.38034079999993
+      }
+    },
+    "ws_session_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0.913155,
+        "med": 102.66710950000001,
+        "max": 220.309887,
+        "p(90)": 183.250946,
+        "p(95)": 193.90523775,
+        "p(99)": 200.573259,
+        "avg": 102.63725425107411
+      }
+    },
+    "search_hits": {
+      "contains": "default",
+      "values": {
+        "count": 872,
+        "rate": 9.571778753023901
+      },
+      "type": "counter"
+    },
+    "vus_max": {
+      "values": {
+        "value": 35,
+        "min": 35,
+        "max": 35
+      },
+      "type": "gauge",
+      "contains": "default"
+    },
+    "http_req_connecting": {
+      "contains": "time",
+      "values": {
+        "avg": 0.0004996035012863147,
+        "min": 0,
+        "med": 0,
+        "max": 0.65394,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0
+      },
+      "type": "trend"
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 36.05016290638129,
+        "min": 0.426225,
+        "med": 11.430293,
+        "max": 3197.804075,
+        "p(90)": 45.977150399999985,
+        "p(95)": 75.96043499999988,
+        "p(99)": 768.490291519998
+      }
+    },
+    "ws_connect_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 101.04967776584319,
+        "min": 0,
+        "med": 101,
+        "max": 218,
+        "p(90)": 181.70000000000027,
+        "p(95)": 192,
+        "p(99)": 199
+      },
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_duration": {
+      "contains": "time",
+      "values": {
+        "avg": 36.40612977373411,
+        "min": 0.550133,
+        "med": 11.699904,
+        "max": 3198.030089,
+        "p(90)": 46.6486424,
+        "p(95)": 76.38034079999993,
+        "p(99)": 768.560299439998
+      },
+      "thresholds": {
+        "p(95)<500": {
+          "ok": true
+        },
+        "p(99)<1500": {
+          "ok": true
+        }
+      },
+      "type": "trend"
+    },
+    "iteration_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 1.031163,
+        "med": 121.714333,
+        "max": 3754.965772,
+        "p(90)": 210.5036696,
+        "p(95)": 251.19971139999996,
+        "p(99)": 837.1911969999746,
+        "avg": 137.55474057677387
+      }
+    }
+  },
+  "setup_data": {
+    "searchStatus": 200,
+    "searchTerms": [
+      "User00012",
+      "user00012@example.com",
+      "esprobe",
+      "esprobe@example.com",
+      "User00001",
+      "user00001@example.com",
+      "User00002",
+      "user00002@example.com",
+      "User00003",
+      "user00003@example.com",
+      "User00004",
+      "user00004@example.com",
+      "User00005",
+      "user00005@example.com",
+      "User00001",
+      "user00001@example.com",
+      "User00002",
+      "user00002@example.com",
+      "User00003",
+      "user00003@example.com",
+      "User00004",
+      "user00004@example.com",
+      "User00005",
+      "user00005@example.com",
+      "User00006",
+      "user00006@example.com",
+      "User00007",
+      "user00007@example.com",
+      "User00008",
+      "user00008@example.com",
+      "User00009",
+      "user00009@example.com",
+      "User00010",
+      "user00010@example.com",
+      "User00011",
+      "user00011@example.com",
+      "User00012",
+      "user00012@example.com",
+      "User00013",
+      "user00013@example.com",
+      "User00014",
+      "user00014@example.com",
+      "User00015",
+      "user00015@example.com",
+      "User00016",
+      "user00016@example.com",
+      "User00017",
+      "user00017@example.com",
+      "User00018",
+      "user00018@example.com",
+      "User00019",
+      "user00019@example.com",
+      "User00020",
+      "user00020@example.com",
+      "User00021",
+      "user00021@example.com",
+      "User00022",
+      "user00022@example.com",
+      "User00023",
+      "user00023@example.com",
+      "User00024",
+      "user00024@example.com",
+      "User00025",
+      "user00025@example.com",
+      "User00026",
+      "user00026@example.com",
+      "User00027",
+      "user00027@example.com",
+      "User00028",
+      "user00028@example.com",
+      "User00029",
+      "user00029@example.com",
+      "User00030",
+      "user00030@example.com",
+      "User00031",
+      "user00031@example.com",
+      "User00032",
+      "user00032@example.com",
+      "User00033",
+      "user00033@example.com",
+      "User00034",
+      "user00034@example.com",
+      "User00035",
+      "user00035@example.com",
+      "User00036",
+      "user00036@example.com",
+      "User00037",
+      "user00037@example.com",
+      "User00038",
+      "user00038@example.com",
+      "User00039",
+      "user00039@example.com",
+      "User00040",
+      "user00040@example.com",
+      "User00041",
+      "user00041@example.com",
+      "User00042",
+      "user00042@example.com",
+      "User00043",
+      "user00043@example.com",
+      "User00044",
+      "user00044@example.com",
+      "User00045",
+      "user00045@example.com",
+      "User00046",
+      "user00046@example.com",
+      "User00047",
+      "user00047@example.com",
+      "User00048",
+      "user00048@example.com",
+      "User00049",
+      "user00049@example.com",
+      "User00050",
+      "user00050@example.com",
+      "User00051",
+      "user00051@example.com",
+      "User00052",
+      "user00052@example.com",
+      "User00053",
+      "user00053@example.com",
+      "User00054",
+      "user00054@example.com",
+      "User00055",
+      "user00055@example.com",
+      "User00056",
+      "user00056@example.com",
+      "User00057",
+      "user00057@example.com",
+      "User00058",
+      "user00058@example.com",
+      "User00059",
+      "user00059@example.com",
+      "User00060",
+      "user00060@example.com",
+      "User00061",
+      "user00061@example.com",
+      "User00062",
+      "user00062@example.com",
+      "User00063",
+      "user00063@example.com",
+      "User00064",
+      "user00064@example.com",
+      "User00065",
+      "user00065@example.com",
+      "User00066",
+      "user00066@example.com",
+      "User00067",
+      "user00067@example.com",
+      "User00068",
+      "user00068@example.com",
+      "lorem",
+      "comment",
+      "alpha",
+      "beta",
+      "hello",
+      "user1",
+      "user42",
+      "world"
+    ],
+    "startedAt": "2026-10-04T15:14:15.463Z",
+    "totalComments": 100013,
+    "createAvailable": true,
+    "health": {
+      "broker": "ok",
+      "database": "ok",
+      "queue": {
+        "pending": 0,
+        "processed": 0
+      },
+      "redis": "ok",
+      "search": "ok",
+      "storage": "ok",
+      "version": "2.0.0",
+      "websocket": {
+        "clients": 1
+      },
+      "cache": "ok",
+      "status": "ok"
+    },
+    "ids": [
+      100012,
+      100011,
+      100001,
+      100002,
+      100003,
+      100004,
+      100005,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68
+    ]
+  }
+}
