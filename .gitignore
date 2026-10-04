@@ -36,6 +36,9 @@ src/Frontend/dist/
 src/Frontend/.angular/
 src/Frontend/node_modules/
 
+# Scratch workspace used by frontend/QA tooling (screenshots, proxies, local npm cache)
+src/Frontend/.work/
+
 # Tooling caches kept inside the repo (sandbox cannot write $HOME)
 .dotnet-home/
 .npm-cache/
@@ -43,6 +46,7 @@ src/Frontend/node_modules/
 
 # QA runtime scratch space (live API instances, curl/browser artifacts)
 tests/.runtime/
+tests/frontend/.runtime/
 
 # OS / IDE
 .DS_Store
