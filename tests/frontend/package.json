@@ -1,11 +1,12 @@
 {
   "name": "comments-spa-frontend-harness",
   "private": true,
-  "description": "QA jsdom harness that boots the real SPA modules against a live API",
+  "description": "QA real-browser (Playwright) checks for the Angular SPA served by nginx",
   "scripts": {
-    "harness": "node dom-harness.mjs"
+    "browser-check": "node angular-check.mjs",
+    "check": "bash run-browser-check.sh"
   },
   "devDependencies": {
-    "jsdom": "^24.1.3"
+    "playwright": "^1.63.0"
   }
 }
