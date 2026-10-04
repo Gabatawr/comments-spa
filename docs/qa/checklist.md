@@ -28,10 +28,10 @@ Evidence tokens:
 | ENV-01 | .NET latest + EF Core (TASK.md «Обязательный стек») | `dotnet build`; inspect csproj | net10.0, EF Core 10.0.12 Sqlite, ImageSharp 3.1.12 | pass | R1 build succeeded; `CommentsApi.csproj` TargetFramework net10.0 + `Microsoft.EntityFrameworkCore.Sqlite 10.0.12` | backend |
 | ENV-02 | SQL relational DB (SQLite/PostgreSQL/MS SQL) (raw p.2) | integration tests on temp SQLite files | SQLite provider, migrations auto-applied | pass | R1 — 251 tests against `Data Source=<temp>/comments.db` | backend |
 | ENV-03 | Frontend on a framework choice (TASK.md); team chose static ES-module SPA | static files; live serving + functional checks | SPA served at `/`, no build step | pass | E1 SPA asset sweep: `/`, `/index.html`, `/css/app.css`, `/assets/favicon.svg`, all `/js/*.js` → 200 with correct content types; H1 boots and drives the real modules | frontend |
-| ENV-04 | Git repository with branching history (raw p.4) | `git log --oneline --graph` | ≥1 commit, meaningful history | not verified | Lead task-6/task-7 | lead |
-| ENV-05 | Docker packaging with full environment (raw p.4) | `docker compose build && up -d` | container healthy, app reachable | not verified | Lead task-6/task-7 | lead |
-| ENV-06 | Reproducible from scratch strictly per README (raw p.4) | follow README in clean checkout | app starts, URLs work | not verified | Lead task-6/task-7 | lead |
-| ENV-07 | Load/user scale architecture + load test for Middle+ (raw p.6) | read ARCHITECTURE Middle+ section + load test | documented | not verified | Lead task-6/task-7 | lead |
+| ENV-04 | Git repository with branching history (raw p.4) | `git log --oneline --graph` | ≥1 commit, meaningful history | pass | Lead: 4 feature branches (`feature/backend`, `feature/frontend`, `feature/qa`, `feature/infra`) each merged with `--no-ff`; graph in `lead-acceptance.md` §7 | lead |
+| ENV-05 | Docker packaging with full environment (raw p.4) | `docker compose build && up -d` | container healthy, app reachable | pass | Lead: `docker compose config --quiet` OK; `down -v` then `up --build -d` → `healthy`, `restarts=0`, `/api/health` 200 | lead |
+| ENV-06 | Reproducible from scratch strictly per README (raw p.4) | follow README in clean checkout | app starts, URLs work | pass | Lead: purged `.nuget`+`bin`/`obj`/`wwwroot`, then `dotnet restore && build && test` → 0 errors, **251/251**; `scripts/run-dev.sh` → health 200 + E1 38 PASS | lead |
+| ENV-07 | Load/user scale architecture + load test for Middle+ (raw p.6) | read ARCHITECTURE Middle+ section + load test | documented | pass (part) | Lead: `docs/ARCHITECTURE.md` «Middle (заложено)» / Middle+ 1M·100k plan; load test intentionally out of scope per brief | lead |
 | ENV-08 | OOP design (raw p.2) | inspect structure/DI | domain/services/validation/infrastructure, DI | pass | S:`ls src/Backend/CommentsApi` → Domain, Services, Validation, Infrastructure, Dtos, Data, Endpoints; Program.cs DI | backend |
 
 ## B. API contract (`docs/API.md`, FROZEN)
@@ -164,24 +164,24 @@ Evidence tokens:
 
 | ID | Artifact | Verification method | Expected result | Status | Evidence | Owner |
 |----|----------|---------------------|-----------------|--------|----------|-------|
-| ART-01 | README.md what/features/quick start/tests | read + run commands | reproducible | not verified | Lead task-6/task-7 | lead |
-| ART-02 | `db/schema.sql` MySQL Workbench compatible | open file, compare to entities | valid DDL, self-FK, indexes, utf8mb4 | not verified | Lead task-6/task-7 | lead |
-| ART-03 | Dockerfile multi-stage, non-root, healthcheck | read + build | builds & runs | not verified | Lead task-6/task-7 | lead |
-| ART-04 | docker-compose service/port/volume/env | `docker compose config` + up | healthy | not verified | Lead task-6/task-7 | lead |
-| ART-05 | Git history | `git log --oneline --graph` | multi-commit | not verified | Lead task-6/task-7 | lead |
-| ART-06 | Live deployment/hosting | manual | out of automation scope, noted | not verified | out of scope (report.md §5) | lead |
-| ART-07 | Self-check from scratch per README | clean clone + README | works | not verified | Lead task-6/task-7 | lead |
+| ART-01 | README.md what/features/quick start/tests | read + run commands | reproducible | pass | Lead: all README commands executed as written (docker + local + tests); `lead-acceptance.md` §5 | lead |
+| ART-02 | `db/schema.sql` MySQL Workbench compatible | open file, compare to entities | valid DDL, self-FK, indexes, utf8mb4 | pass | Lead: MySQL 8 DDL, `comments` self-FK + `attachments`, utf8mb4, indexed, column comments; type map in `db/schema.md` | lead |
+| ART-03 | Dockerfile multi-stage, non-root, healthcheck | read + build | builds & runs | pass | Lead: sdk→aspnet multi-stage, `USER app`, HEALTHCHECK on `/api/health`; image builds and reports `healthy` | lead |
+| ART-04 | docker-compose service/port/volume/env | `docker compose config` + up | healthy | pass | Lead: `config --quiet` OK; port 8080, named data/storage volumes, Production env; container healthy | lead |
+| ART-05 | Git history | `git log --oneline --graph` | multi-commit | pass | Lead: 9 commits incl. 4 merge commits; `lead-acceptance.md` §7 | lead |
+| ART-06 | Live deployment/hosting | manual | out of automation scope, noted | not verified (out of scope) | hosting/VDS excluded by the task brief; Docker packaging verified instead (`lead-acceptance.md` §3–4) | lead |
+| ART-07 | Self-check from scratch per README | clean clone + README | works | pass | Lead: clean-room purge + README path, `docker compose up --build` from empty volumes, e2e 38/38 inside the container | lead |
 | ART-08 | `tests/README.md` accurate | commands used during this task | accurate | pass | every command in tests/README.md was used for R1/H1/E1 | qa |
 
 ## K. Middle / Middle+ (architecture only, out of implementation scope)
 
 | ID | Requirement (raw p.6) | Verification method | Expected result | Status | Evidence | Owner |
 |----|-----------------------|---------------------|-----------------|--------|----------|-------|
-| MID-01 | Graph (GraphQL/GraphDb) path | read ARCHITECTURE Middle | documented | not verified | Lead task-7 | lead |
-| MID-02 | Broker path | read ARCHITECTURE Middle | documented | not verified | Lead task-7 | lead |
-| MID-03 | NoSQL path | read ARCHITECTURE Middle | documented | not verified | Lead task-7 | lead |
-| MID-04 | Cloud path | read ARCHITECTURE Middle | documented | not verified | Lead task-7 | lead |
-| MID-05 | 1M/100k architecture + load test | read docs + artifacts | documented | not verified | Lead task-7 | lead |
+| MID-01 | Graph (GraphQL/GraphDb) path | read ARCHITECTURE Middle | documented | pass (documented) | Lead: `docs/ARCHITECTURE.md` «Middle (заложено)» — read-model as GraphQL resolver point | lead |
+| MID-02 | Broker path | read ARCHITECTURE Middle | documented | pass (documented) | Lead: `IEventBus` documented as the broker swap point | lead |
+| MID-03 | NoSQL path | read ARCHITECTURE Middle | documented | pass (documented) | Lead: `CommentCache` documented as Redis/Elasticsearch swap point | lead |
+| MID-04 | Cloud path | read ARCHITECTURE Middle | documented | pass (documented) | Lead: env config + stateless web layer documented | lead |
+| MID-05 | 1M/100k architecture + load test | read docs + artifacts | documented | pass (part) | Lead: partitioning/CQRS/rate-limit plan documented; load test not implemented (out of scope) | lead |
 
 ---
 
@@ -202,7 +202,7 @@ Evidence tokens:
 | 11 | live WS (`ws-live.mjs`) against :5085 | `hello -> comment.created -> pong` |
 | 12 | Production instance :5083 → `GET /api/dev/captcha/{id}` | 404 (dev-only); health/captcha/SPA 200 |
 | 13 | live adversarial pass (`curl`, see report.md §3) | no new defects |
-| 14 | `docker compose build && docker compose up -d && tests/e2e/smoke.sh http://localhost:8080` | Lead task-7 |
+| 14 | Lead: `docker compose down -v && docker compose up --build -d`; dev-container E1; clean-room `dotnet test` | **healthy** (0 restarts); E1 **PASS 38/0**; tests **251/0**; prod dev-peek 404 |
 
 ### Environment notes (affect reproducibility)
 
