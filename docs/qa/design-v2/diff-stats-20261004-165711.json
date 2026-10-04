@@ -1,0 +1,35 @@
+{
+  "reference": {
+    "width": 914,
+    "height": 824,
+    "card_x": 32,
+    "card_width": 850
+  },
+  "ours_raw": {
+    "path": "cascade-20261004-165711.png",
+    "scaled_to_width": 914,
+    "x": 0,
+    "y": 0
+  },
+  "canvas": {
+    "width": 914,
+    "height": 1190
+  },
+  "diff": {
+    "mean_abs": 14.016,
+    "rms": 39.466,
+    "max": 253,
+    "pct_any_change": 53.2,
+    "pct_over_32": 9.04
+  },
+  "diff_reference_card_region": {
+    "box": [
+      32,
+      24,
+      882,
+      784
+    ],
+    "mean_abs": 16.272,
+    "pct_over_32": 11.95
+  }
+}

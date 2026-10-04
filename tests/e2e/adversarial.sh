@@ -15,6 +15,13 @@
 #   API_BASE    direct API           (default http://localhost:8081)
 #   PROD_BASE   Production instance — enables introspection/dev-endpoint checks
 #   ADV_LOG     raw log file         (default /tmp/comments-adv-<ts>.log)
+#   PG_CONTAINER/PG_USER/PG_DB  Postgres for the self-cleanup step
+#               (defaults comments-spa-postgres / comments / comments)
+#
+# Self-cleaning: at the end the script deletes ONLY the rows it created
+# (`user_name LIKE 'Adv%'`), deepest-first because comments.parent_id is
+# ON DELETE RESTRICT, then drops the stale list cache. A cleanup problem is
+# logged but never changes the verdict or the exit code.
 #
 # Exit code: 0 when no VULNERABLE verdict was recorded, 1 otherwise.
 # ---------------------------------------------------------------------------
@@ -24,6 +31,9 @@ BASE="${1:-${BASE:-http://localhost:8080}}"; BASE="${BASE%/}"
 API_BASE="${2:-${API_BASE:-http://localhost:8081}}"; API_BASE="${API_BASE%/}"
 PROD_BASE="${PROD_BASE:-}"; PROD_BASE="${PROD_BASE%/}"
 REDIS_CONTAINER="${REDIS_CONTAINER:-comments-spa-redis}"
+PG_CONTAINER="${PG_CONTAINER:-comments-spa-postgres}"
+PG_USER="${PG_USER:-comments}"
+PG_DB="${PG_DB:-comments}"
 ADV_LOG="${ADV_LOG:-/tmp/comments-adv-$(date +%s).log}"
 
 SAFE=0; VULN=0; RISK=0; UNEXPECTED=0; SKIPPED=0
@@ -583,7 +593,47 @@ else
   skip "Production hardening" "set PROD_BASE=<url> to run (dev endpoints + introspection must be off)"
 fi
 
+# --------------------------------------------- self-cleanup of Adv* fixtures
+# Every fixture this script creates uses a user_name starting with "Adv"; no
+# other producer in the repo uses that prefix. Deletion is iterative
+# (deepest-first) because comments.parent_id is ON DELETE RESTRICT. The stale
+# Redis list cache is dropped/invalidated so a following smoke.sh still sees a
+# clean DB (smoke greps the raw list payload for stored markup). Cleanup errors
+# are logged and ignored — they never fail the adversarial run.
+cleanup_adv_fixtures() {
+  local before remaining passes n
+  if ! command -v docker >/dev/null 2>&1; then
+    printf '\n[cleanup] docker not found -> Adv* fixtures left in place\n' | tee -a "$ADV_LOG"
+    return 0
+  fi
+  before="$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -tAc \
+    "select count(*) from comments where user_name like 'Adv%'" 2>/dev/null)" || before="?"
+  passes=0
+  while [ "$passes" -lt 50 ]; do
+    n="$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -tAc \
+      "with removed as (delete from comments c where c.user_name like 'Adv%' and not exists (select 1 from comments ch where ch.parent_id = c.id) returning 1) select count(*) from removed" 2>/dev/null)" || { n=""; break; }
+    [ -n "$n" ] || break
+    [ "$n" != "0" ] || break
+    passes=$((passes + 1))
+  done
+  remaining="$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -tAc \
+    "select count(*) from comments where user_name like 'Adv%'" 2>/dev/null)" || remaining="?"
+  # invalidate the list cache so the next reader does not get a page with removed rows
+  docker exec "$REDIS_CONTAINER" redis-cli --scan --pattern 'comments:page:*' 2>/dev/null \
+    | while read -r key; do
+        [ -n "$key" ] || continue
+        docker exec "$REDIS_CONTAINER" redis-cli DEL "$key" >/dev/null 2>&1 || true
+      done
+  docker exec "$REDIS_CONTAINER" redis-cli INCR comments:version >/dev/null 2>&1 || true
+  {
+    printf '\n[cleanup] Adv* rows: before=%s remaining=%s delete-passes=%s\n' "$before" "$remaining" "$passes"
+    [ "$remaining" = "0" ] || printf '[cleanup] WARNING: %s Adv* row(s) left (referenced by a non-Adv child?)\n' "$remaining"
+  } | tee -a "$ADV_LOG"
+  return 0
+}
+
 # ------------------------------------------------------------------- summary
+cleanup_adv_fixtures
 {
   printf '\n================ ADVERSARIAL SUMMARY ================\n'
   printf 'SAFE=%d VULNERABLE=%d ACCEPTED-RISK=%d UNEXPECTED=%d SKIP=%d\n' "$SAFE" "$VULN" "$RISK" "$UNEXPECTED" "$SKIPPED"
