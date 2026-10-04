@@ -1,6 +1,6 @@
 {
   "name": "comments-spa",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Angular SPA «Комментарии» (docs/API-v2.md): каскад, сортировка, пагинация, CAPTCHA, предпросмотр, вложения, WebSocket.",
   "private": true,
   "scripts": {

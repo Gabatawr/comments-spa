@@ -21,6 +21,18 @@ const DROP_SUBTREE = new Set([
   'button', 'textarea', 'select', 'option', 'audio', 'video', 'canvas', 'portal',
 ]);
 
+/**
+ * Блочные теги, которые не входят в allow-list, но при разворачивании должны
+ * сохранить границу абзаца. Разрешённых тегов это не добавляет: в выходной
+ * фрагмент попадает только `<br>` (безопасный presentational-элемент).
+ */
+const BLOCK_BOUNDARY_TAGS = new Set([
+  'p', 'div', 'section', 'article', 'header', 'footer', 'main', 'aside', 'nav',
+  'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'blockquote', 'pre', 'figure', 'figcaption',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'address', 'hr',
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
+]);
+
 const TAG_RE = /<(\/?)([a-zA-Z][a-zA-Z0-9:-]*)((?:"[^"]*"|'[^']*'|[^"'>])*?)(\/?)>/g;
 
 /** Экранирование текста для безопасной вставки в HTML/атрибут. */
@@ -113,6 +125,17 @@ export function extractHref(tagString: unknown): string | null {
   return match[3] === undefined ? '' : match[3];
 }
 
+function appendBoundaryBreak(dest: Node, doc: Document): void {
+  const last = dest.lastChild;
+  if (!last) {
+    return;
+  }
+  if (last.nodeType === 1 && String((last as Element).tagName || '').toLowerCase() === 'br') {
+    return;
+  }
+  dest.appendChild(doc.createElement('br'));
+}
+
 function appendNode(source: Node, dest: Node, doc: Document): void {
   if (source.nodeType === 3 /* text */) {
     dest.appendChild(doc.createTextNode(source.nodeValue ?? ''));
@@ -131,6 +154,14 @@ function appendNode(source: Node, dest: Node, doc: Document): void {
     : null;
   if (!allowedAttrs) {
     // Неизвестный, но не опасный тег — разворачиваем, сохраняя безопасных детей.
+    // Границу абзаца сохраняем одним <br>, чтобы текст не «склеивался».
+    if (tag === 'br') {
+      appendBoundaryBreak(dest, doc);
+      return;
+    }
+    if (BLOCK_BOUNDARY_TAGS.has(tag)) {
+      appendBoundaryBreak(dest, doc);
+    }
     for (const child of Array.from(element.childNodes)) {
       appendNode(child, dest, doc);
     }

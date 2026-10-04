@@ -28,6 +28,12 @@ export interface CommentDto {
   /** Уже санитизированный сервером HTML (allow-list: a[href,title], code, i, strong). */
   text: string;
   textPlain: string;
+  /**
+   * Снимок плоского текста родителя на момент создания ответа
+   * (DESIGN-v2.1 §1, аддитивное поле; у корней и старых записей — null).
+   * Выводится ТОЛЬКО интерполяцией, без innerHTML.
+   */
+  quotedText: string | null;
   createdAt: string;
   clientIp: string | null;
   userAgent: string | null;
