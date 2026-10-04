@@ -1,0 +1,24 @@
+# ===========================================================================
+# Dev/load override — Development api for seeding + k6 load runs.
+#
+# The default `docker-compose.yml` is Production (dev endpoints return 404),
+# which is what QA's adversarial checks expect. Use this override when you need
+# appsettings.Development.json behaviour:
+#
+#   # dev stack (seed endpoint + captcha peek enabled)
+#   docker compose -f docker-compose.yml -f infra/compose.dev.yml up -d --build
+#
+#   # seed 10k comments, then run k6
+#   docker compose -f docker-compose.yml -f infra/compose.dev.yml \
+#       --profile tools run --rm seed
+#   docker compose -f docker-compose.yml -f infra/compose.dev.yml \
+#       --profile load run --rm k6 run /scripts/scenarios.js
+#
+# Recreating the api container between modes is expected (env change).
+# ===========================================================================
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Features__Seed: "true"
+      Features__DevCaptchaPeek: "true"
