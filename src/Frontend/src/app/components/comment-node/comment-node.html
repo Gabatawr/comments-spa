@@ -2,6 +2,7 @@
   <article
     class="comment-card"
     data-testid="comment-card"
+    [attr.id]="'comment-' + comment.id"
     [attr.data-comment-id]="comment.id"
     [attr.data-depth]="depth"
   >
@@ -9,43 +10,140 @@
       <span class="avatar" aria-hidden="true" [style.--avatar-hue]="avatarHue(comment.userName)">
         {{ initials(comment.userName) }}
       </span>
+
       <div class="comment-author">
         <span class="comment-username">{{ comment.userName || 'Неизвестный' }}</span>
         <time class="comment-date" [attr.datetime]="comment.createdAt">{{
           formatDate(comment.createdAt)
         }}</time>
-        @if (comment.email) {
-          <span class="comment-email" title="E-mail">{{ comment.email }}</span>
-        }
-        @if (safeHomePage(comment.homePage); as home) {
-          <a
-            class="comment-home"
-            [href]="home"
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            >домашняя страница</a
-          >
-        } @else if (comment.homePage) {
-          <span class="comment-home">{{ comment.homePage }}</span>
-        }
       </div>
-      <div class="comment-actions">
-        @if (comment.clientIp) {
-          <span class="comment-ip" [title]="'IP клиента: ' + comment.clientIp">{{
-            comment.clientIp
-          }}</span>
-        }
+
+      <div class="comment-icons">
         <button
           type="button"
-          class="btn btn-ghost btn-small btn-reply"
+          class="icon-btn"
+          data-testid="anchor-button"
+          title="Ссылка на комментарий"
+          aria-label="Ссылка на комментарий"
+          (click)="onAnchor(comment.id)"
+        >
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="9.5" y1="4" x2="7.5" y2="20" />
+            <line x1="16.5" y1="4" x2="14.5" y2="20" />
+            <line x1="4.5" y1="9" x2="19.5" y2="9" />
+            <line x1="4.5" y1="15" x2="19.5" y2="15" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          class="icon-btn"
+          data-testid="bookmark-button"
+          title="Закладка"
+          aria-label="Закладка"
+          [class.is-active]="bookmarks().has(comment.id)"
+          [attr.aria-pressed]="bookmarks().has(comment.id) ? 'true' : 'false'"
+          (click)="toggleBookmark(comment.id)"
+        >
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6.5 3.5h11v17l-5.5-4.2-5.5 4.2z" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          class="icon-btn"
           data-testid="reply-button"
           title="Ответить на этот комментарий"
+          aria-label="Ответить на этот комментарий"
           (click)="onReply(comment)"
         >
-          Ответить
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="9.5 6.5 4.5 11.5 9.5 16.5" />
+            <path d="M4.5 11.5h9a5.5 5.5 0 0 1 5.5 5.5v1.5" />
+          </svg>
         </button>
+
+        <span class="icon-wrap">
+          <button
+            type="button"
+            class="icon-btn"
+            data-testid="author-info-button"
+            title="Информация об авторе"
+            aria-label="Информация об авторе"
+            [class.is-active]="openInfoId() === comment.id"
+            [attr.aria-expanded]="openInfoId() === comment.id ? 'true' : 'false'"
+            (click)="toggleInfo(comment.id)"
+          >
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.5" />
+              <line x1="12" y1="11" x2="12" y2="16.5" />
+              <circle cx="12" cy="7.8" r="0.9" class="icon-dot" />
+            </svg>
+          </button>
+
+          @if (openInfoId() === comment.id) {
+            <div
+              class="author-popover"
+              data-testid="author-info"
+              role="dialog"
+              aria-label="Информация об авторе"
+            >
+              <div class="author-popover-row">
+                <span class="author-popover-label">Имя</span>
+                <span class="author-popover-value">{{ comment.userName || 'Неизвестный' }}</span>
+              </div>
+              <div class="author-popover-row">
+                <span class="author-popover-label">E-mail</span>
+                <span class="author-popover-value" data-testid="author-email">{{ comment.email }}</span>
+              </div>
+              @if (comment.clientIp) {
+                <div class="author-popover-row">
+                  <span class="author-popover-label">IP</span>
+                  <span class="author-popover-value" data-testid="author-ip">{{ comment.clientIp }}</span>
+                </div>
+              }
+              @if (comment.userAgent) {
+                <div class="author-popover-row">
+                  <span class="author-popover-label">User-Agent</span>
+                  <span class="author-popover-value author-popover-ua">{{ comment.userAgent }}</span>
+                </div>
+              }
+              @if (safeHomePage(comment.homePage); as home) {
+                <div class="author-popover-row">
+                  <span class="author-popover-label">Сайт</span>
+                  <a
+                    class="author-popover-link"
+                    data-testid="author-home"
+                    [href]="home"
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    >{{ home }}</a
+                  >
+                </div>
+              } @else if (comment.homePage) {
+                <div class="author-popover-row">
+                  <span class="author-popover-label">Сайт</span>
+                  <span class="author-popover-value">{{ comment.homePage }}</span>
+                </div>
+              }
+            </div>
+          }
+        </span>
+      </div>
+
+      <div class="comment-vote" data-testid="comment-vote" aria-hidden="true">
+        <span class="vote-arrow">↑</span>
+        <span class="vote-count">0</span>
+        <span class="vote-arrow">↓</span>
       </div>
     </header>
+
+    @if (comment.quotedText) {
+      <blockquote class="comment-quote">
+        <span class="comment-quote-text" data-testid="comment-quote-text">{{ comment.quotedText }}</span>
+      </blockquote>
+    }
 
     <div class="comment-body" data-testid="comment-text" [innerHTML]="safeText(comment.text)"></div>
 

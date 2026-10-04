@@ -699,6 +699,11 @@ h3 {
   background: #fff;
 }
 
+/* Пока открыта карточка автора, таблица не должна её обрезать. */
+.table-wrap:has(.author-popover) {
+  overflow: visible;
+}
+
 .comments-table {
   width: 100%;
   border-collapse: collapse;
@@ -809,94 +814,237 @@ h3 {
 .detail-row > .detail-cell {
   padding: 0;
   border-bottom: 1px solid var(--border);
-  background: #f7f9fc;
+  background: #f5f7fb;
 }
 
 .cascade {
-  padding: 14px;
+  padding: 24px 32px 32px;
+  /*
+   * Цитата однострочная (white-space: nowrap), поэтому её max-content ширина
+   * не должна раздувать auto-раскладку таблицы. inline-size containment
+   * заставляет .cascade считаться пустым при вычислении min-content.
+   */
+  contain: inline-size;
   animation: fade-in 0.25s ease;
 }
 
 .comment-card {
   background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  border: none;
+  border-radius: 2px;
+  /*
+   * В образце над шапкой 32px БЕЛОГО фона карточки, а не фона страницы.
+   * flow-root не даёт margin-top шапки схлопнуться наружу карточки.
+   * Теней у карточек нет (QA §3: над вложенными полосами нет не-белых пикселей).
+   */
+  display: flow-root;
+  overflow: visible;
 }
 
-.cascade > .comment-card {
-  border-color: var(--border-strong);
+/* Нижний воздух внешней карточки (в образце 36px под последним телом). */
+.comment-card[data-depth='0'] {
+  padding-bottom: 36px;
 }
 
+/*
+ * Шапка — отдельная серая плашка с полями 32px внутри белой карточки
+ * (измерено: карточка x 32..881, плашка x 64..849, высота 56px).
+ */
 .comment-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--card-head);
-  border-bottom: 1px solid var(--border);
+  gap: 20px;
+  height: 56px;
+  margin: 32px 32px 16px;
+  padding: 0 8px;
+  background: #f5f6f7;
+  border-radius: 2px;
+}
+
+/*
+ * Фон шапки чередуется по чётности глубины (образец: 0 → #f5f6f7,
+ * 1 → #f5f7fb, 2 → #f5f6f7). Глубины перечислены явно, т.к. CSS не умеет
+ * брать чётность числового атрибута; покрыто 0..50 (= MAX_DEPTH компонента).
+ */
+.comment-card:is([data-depth='0'], [data-depth='2'], [data-depth='4'], [data-depth='6'], [data-depth='8'], [data-depth='10'], [data-depth='12'], [data-depth='14'], [data-depth='16'], [data-depth='18'], [data-depth='20'], [data-depth='22'], [data-depth='24'], [data-depth='26'], [data-depth='28'], [data-depth='30'], [data-depth='32'], [data-depth='34'], [data-depth='36'], [data-depth='38'], [data-depth='40'], [data-depth='42'], [data-depth='44'], [data-depth='46'], [data-depth='48'], [data-depth='50']) > .comment-head {
+  background: #f5f6f7;
+}
+
+.comment-card:is([data-depth='1'], [data-depth='3'], [data-depth='5'], [data-depth='7'], [data-depth='9'], [data-depth='11'], [data-depth='13'], [data-depth='15'], [data-depth='17'], [data-depth='19'], [data-depth='21'], [data-depth='23'], [data-depth='25'], [data-depth='27'], [data-depth='29'], [data-depth='31'], [data-depth='33'], [data-depth='35'], [data-depth='37'], [data-depth='39'], [data-depth='41'], [data-depth='43'], [data-depth='45'], [data-depth='47'], [data-depth='49']) > .comment-head {
+  background: #f5f7fb;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
-  color: #43526b;
-  background: hsl(var(--avatar-hue, 210) 60% 83%);
-  border: 1px solid rgba(67, 82, 107, 0.12);
+  line-height: 1;
+  color: #fff;
+  text-transform: uppercase;
+  user-select: none;
+  background: hsl(var(--avatar-hue, 210) 55% 72%);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(15, 35, 70, 0.06);
 }
 
 .comment-author {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  flex-wrap: wrap;
   min-width: 0;
 }
 
 .comment-username {
+  font-size: 17px;
   font-weight: 700;
-  color: #2b3445;
+  color: #0a1833;
+  white-space: nowrap;
 }
 
 .comment-date {
-  color: var(--muted);
-  font-size: 12.5px;
+  color: #848b99;
+  font-size: 15px;
+  white-space: nowrap;
 }
 
-.comment-email {
+/* 4 иконки: 20px, currentColor #7b95c8, шаг 24px (20 + gap 4). */
+.comment-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7b95c8;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.icon-btn:hover {
+  color: #4f6fb0;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.icon-btn.is-active {
+  color: #2f6ac0;
+}
+
+.icon-btn .icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-btn .icon-dot {
+  fill: currentColor;
+  stroke: none;
+}
+
+.icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Всплывающая карточка автора — единственный доступ к e-mail/IP/сайту. */
+.author-popover {
+  position: absolute;
+  top: 26px;
+  left: -8px;
+  z-index: 40;
+  min-width: 240px;
+  max-width: 340px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(16, 24, 40, 0.18);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+
+.author-popover-row {
+  display: flex;
+  gap: 8px;
+}
+
+.author-popover-row + .author-popover-row {
+  margin-top: 5px;
+}
+
+.author-popover-label {
+  flex: 0 0 74px;
   color: var(--muted);
+}
+
+.author-popover-value {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.author-popover-link {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.author-popover-ua {
   font-size: 12px;
+  color: var(--text-soft);
 }
 
-.comment-email::before {
-  content: "✉ ";
-}
-
-.comment-home {
-  color: var(--accent);
-  font-size: 12.5px;
-}
-
-.comment-home::before {
-  content: "⌂ ";
-}
-
-.comment-actions {
+/* Голосование — только внешний вид, без обработчиков (DESIGN-v2.1 §0/§2). */
+.comment-vote {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 4px;
+  color: #848b99;
+  font-size: 15px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+.comment-vote .vote-count {
+  min-width: 10px;
+  text-align: center;
 }
 
 .comment-body {
-  padding: 12px 16px;
-  color: #3a465b;
-  line-height: 1.6;
+  padding: 0 32px;
+  color: #475266;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.comment-body p {
+  margin: 0 0 12px;
 }
 
 .comment-body > :first-child {
@@ -907,12 +1055,33 @@ h3 {
   margin-bottom: 0;
 }
 
+/*
+ * Цитата (DESIGN-v2.1 §1.2): плоский текст родителя, полоса на том же левом
+ * уровне, что и тело (32px от края карточки), однострочный ellipsis.
+ */
+.comment-quote {
+  margin: 0 32px 14px;
+  border-left: 2px solid #b3c2e1;
+  padding-left: 9px;
+  color: #848b99;
+  font-style: normal;
+  font-size: 16px;
+  line-height: 1.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comment-quote-text {
+  display: inline;
+}
+
 .comment-attachment {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 0 16px 12px;
+  padding: 12px 32px 0;
 }
 
 .comment-thumb {
@@ -963,20 +1132,25 @@ h3 {
   font-size: 12px;
 }
 
+/*
+ * Вложенность: 32px на уровень (30px отступ + 2px линия). Шапка ребёнка
+ * сдвинута так же, как тело. Линию оставляем (контракт §5 + Playwright-чек),
+ * но тонкой 2px #e0e2e6, чтобы почти не отличалась от образца.
+ */
 .comment-children {
-  margin: 12px 0 12px 26px;
-  padding-left: 16px;
-  border-left: 3px solid var(--border-strong);
+  margin: 0 0 0 30px;
+  padding-left: 0;
+  border-left: 2px solid #e0e2e6;
 }
 
 .comment-children > .comment-card + .comment-card {
-  margin-top: 10px;
+  margin-top: 16px;
 }
 
 .comment-depth-note {
-  margin: 0 16px 12px;
-  color: var(--muted);
-  font-size: 12.5px;
+  margin: 12px 32px 0;
+  color: #848b99;
+  font-size: 13px;
   font-style: italic;
 }
 
@@ -1393,12 +1567,21 @@ h3 {
   }
 
   .comment-children {
-    margin-left: 12px;
-    padding-left: 10px;
+    margin-left: 14px;
+    padding-left: 0;
+  }
+
+  .comment-head {
+    gap: 12px;
+    margin: 16px 16px 12px;
   }
 
   .comment-body {
-    padding: 10px 12px;
+    padding: 0 16px;
+  }
+
+  .comment-quote {
+    margin: 0 16px 12px;
   }
 
   .toasts {
@@ -1421,8 +1604,12 @@ app-comment-node {
   display: block;
 }
 
-.cascade > app-comment-node > .comment-card {
-  border-color: var(--border-strong);
+.cascade > app-comment-node {
+  display: block;
+}
+
+.cascade > app-comment-node + app-comment-node {
+  margin-top: 16px;
 }
 
 .preview-badge {
@@ -1444,15 +1631,6 @@ app-comment-node {
   letter-spacing: 0.06em;
 }
 
-.comment-ip {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--muted);
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #f1f3f7;
-}
-
 .th-sortable:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -1471,7 +1649,7 @@ app-comment-node {
 }
 
 .comment-card + .comment-card {
-  margin-top: 10px;
+  margin-top: 16px;
 }
 
 .comment-body strong {
