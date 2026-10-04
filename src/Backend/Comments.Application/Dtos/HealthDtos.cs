@@ -21,7 +21,7 @@ public sealed class HealthDto
     /// <summary>"ok" | "error" | "disabled".</summary>
     public string Storage { get; set; } = "ok";
 
-    public string Version { get; set; } = "2.0.0";
+    public string Version { get; set; } = "2.1.0";
 }
 
 public sealed class QueueHealthDto

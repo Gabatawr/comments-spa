@@ -13,6 +13,10 @@ public sealed class CommentCreateModel
     public string? HomePage { get; init; }
     public string TextHtml { get; init; } = string.Empty;
     public string TextPlain { get; init; } = string.Empty;
+
+    /// <summary>Quote snapshot already computed from the parent's plain text (may be null).</summary>
+    public string? QuotedText { get; init; }
+
     public int? ParentId { get; init; }
     public int? AttachmentId { get; init; }
     public string? ClientIp { get; init; }
@@ -58,6 +62,7 @@ public sealed class CommentCreateService : ICommentCreateService
             HomePage = model.HomePage,
             TextHtml = model.TextHtml,
             TextPlain = model.TextPlain,
+            QuotedText = model.QuotedText,
             CreatedAt = model.CreatedAt ?? _clock.UtcNow,
             ClientIp = model.ClientIp,
             UserAgent = model.UserAgent,

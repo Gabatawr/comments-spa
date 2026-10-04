@@ -38,6 +38,7 @@ public static class CommentMapper
             HomePage = comment.HomePage,
             Text = comment.TextHtml,
             TextPlain = comment.TextPlain,
+            QuotedText = comment.QuotedText,
             CreatedAt = AsUtc(comment.CreatedAt),
             ClientIp = comment.ClientIp,
             UserAgent = comment.UserAgent,
