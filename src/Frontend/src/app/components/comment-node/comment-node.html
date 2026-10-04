@@ -1,0 +1,103 @@
+<ng-template #nodeTpl let-comment let-depth="depth">
+  <article
+    class="comment-card"
+    data-testid="comment-card"
+    [attr.data-comment-id]="comment.id"
+    [attr.data-depth]="depth"
+  >
+    <header class="comment-head">
+      <span class="avatar" aria-hidden="true" [style.--avatar-hue]="avatarHue(comment.userName)">
+        {{ initials(comment.userName) }}
+      </span>
+      <div class="comment-author">
+        <span class="comment-username">{{ comment.userName || 'Неизвестный' }}</span>
+        <time class="comment-date" [attr.datetime]="comment.createdAt">{{
+          formatDate(comment.createdAt)
+        }}</time>
+        @if (comment.email) {
+          <span class="comment-email" title="E-mail">{{ comment.email }}</span>
+        }
+        @if (safeHomePage(comment.homePage); as home) {
+          <a
+            class="comment-home"
+            [href]="home"
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            >домашняя страница</a
+          >
+        } @else if (comment.homePage) {
+          <span class="comment-home">{{ comment.homePage }}</span>
+        }
+      </div>
+      <div class="comment-actions">
+        @if (comment.clientIp) {
+          <span class="comment-ip" [title]="'IP клиента: ' + comment.clientIp">{{
+            comment.clientIp
+          }}</span>
+        }
+        <button
+          type="button"
+          class="btn btn-ghost btn-small btn-reply"
+          data-testid="reply-button"
+          title="Ответить на этот комментарий"
+          (click)="onReply(comment)"
+        >
+          Ответить
+        </button>
+      </div>
+    </header>
+
+    <div class="comment-body" data-testid="comment-text" [innerHTML]="safeText(comment.text)"></div>
+
+    @if (comment.attachment; as att) {
+      <div class="comment-attachment">
+        @if (att.kind === 'image') {
+          <img
+            class="comment-thumb"
+            data-testid="attachment-image"
+            [src]="thumbSrc(att)"
+            [alt]="att.fileName ? 'Изображение ' + att.fileName : 'Изображение'"
+            loading="lazy"
+            title="Открыть изображение"
+            (click)="openImage(att)"
+          />
+          <span class="attachment-meta"
+            >{{ att.fileName }}
+            @if (att.width) {
+              · {{ att.width }}×{{ att.height }}
+            }
+          </span>
+        } @else {
+          <button
+            type="button"
+            class="file-chip"
+            data-testid="attachment-file"
+            (click)="openText(att)"
+          >
+            <span class="file-chip-icon" aria-hidden="true">📄</span>
+            <span class="file-chip-name">{{ att.fileName || 'Текстовый файл' }}</span>
+            <span class="file-chip-size">{{ formatBytes(att.sizeBytes) }}</span>
+          </button>
+        }
+      </div>
+    }
+
+    @if (comment.replies?.length) {
+      @if (depth < MAX_DEPTH) {
+        <div class="comment-children" data-testid="reply-children">
+          @for (child of comment.replies; track child.id) {
+            <ng-container
+              *ngTemplateOutlet="nodeTpl; context: { $implicit: child, depth: depth + 1 }"
+            ></ng-container>
+          }
+        </div>
+      } @else {
+        <div class="comment-depth-note">Достигнут предел вложенности отображения.</div>
+      }
+    }
+  </article>
+</ng-template>
+
+<ng-container
+  *ngTemplateOutlet="nodeTpl; context: { $implicit: comment(), depth: depth() }"
+></ng-container>

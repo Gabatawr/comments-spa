@@ -1,0 +1,310 @@
+<section class="card form-card" data-testid="add-form" aria-labelledby="form-title">
+  <h2 id="form-title">{{ replyTarget() ? 'Ответить на комментарий' : 'Добавить комментарий' }}</h2>
+
+  @if (generalError()) {
+    <div class="alert alert-error" data-testid="form-general-error" role="alert">
+      {{ generalError() }}
+    </div>
+  }
+
+  @if (replyTarget(); as target) {
+    <div class="reply-banner" data-testid="reply-banner">
+      <span>Ответ на комментарий #{{ target.id }}@if (target.userName) { — {{ target.userName }} }</span>
+      <button type="button" class="btn btn-ghost btn-small" (click)="cancelReply()">Отменить</button>
+    </div>
+  }
+
+  <form (submit)="onSubmit($event)" novalidate>
+    <div class="form-grid">
+      <div class="field">
+        <label for="userName">User Name <span class="req">*</span></label>
+        <input
+          id="userName"
+          name="userName"
+          type="text"
+          maxlength="50"
+          autocomplete="nickname"
+          placeholder="латиница и цифры, 3–50"
+          [value]="userName()"
+          [class.is-invalid]="hasError('userName')"
+          (input)="onFieldInput('userName', $event)"
+        />
+        @if (error('userName'); as message) {
+          <p class="field-error" data-testid="error-userName">{{ message }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="email">E-mail <span class="req">*</span></label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          maxlength="100"
+          autocomplete="email"
+          placeholder="user@example.com"
+          [value]="email()"
+          [class.is-invalid]="hasError('email')"
+          (input)="onFieldInput('email', $event)"
+        />
+        @if (error('email'); as message) {
+          <p class="field-error" data-testid="error-email">{{ message }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="homePage">Home page</label>
+        <input
+          id="homePage"
+          name="homePage"
+          type="url"
+          maxlength="200"
+          autocomplete="url"
+          placeholder="https://example.com (необязательно)"
+          [value]="homePage()"
+          [class.is-invalid]="hasError('homePage')"
+          (input)="onFieldInput('homePage', $event)"
+        />
+        @if (error('homePage'); as message) {
+          <p class="field-error" data-testid="error-homePage">{{ message }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="field field-full">
+      <label for="text">Text <span class="req">*</span></label>
+      <div class="tag-toolbar" role="toolbar" aria-label="Панель тегов">
+        <button
+          type="button"
+          class="tag-btn"
+          data-testid="toolbar-i"
+          title="Курсив (Ctrl+I)"
+          (click)="applyTag('i')"
+        >
+          <i>i</i>
+        </button>
+        <button
+          type="button"
+          class="tag-btn"
+          data-testid="toolbar-strong"
+          title="Жирный (Ctrl+B)"
+          (click)="applyTag('strong')"
+        >
+          <strong>strong</strong>
+        </button>
+        <button
+          type="button"
+          class="tag-btn"
+          data-testid="toolbar-code"
+          title="Код"
+          (click)="applyTag('code')"
+        >
+          <code>code</code>
+        </button>
+        <button
+          type="button"
+          class="tag-btn"
+          data-testid="toolbar-a"
+          title="Ссылка (Ctrl+K)"
+          (click)="applyTag('a')"
+        >
+          a
+        </button>
+        <span class="tag-hint">
+          Разрешены: <code>&lt;a href title&gt;</code>, <code>&lt;code&gt;</code>,
+          <code>&lt;i&gt;</code>, <code>&lt;strong&gt;</code>
+        </span>
+      </div>
+      <textarea
+        #textArea
+        id="text"
+        name="text"
+        data-testid="textarea"
+        rows="6"
+        maxlength="5000"
+        placeholder="Текст сообщения. Разрешены только теги a, code, i, strong."
+        [class.is-invalid]="hasError('text')"
+        (input)="onTextInput($event)"
+        (keydown)="onTextKeydown($event)"
+      ></textarea>
+      <div class="field-row">
+        <span class="char-counter" data-testid="text-counter"
+          >{{ text().length }} / {{ LIMITS.textMax }}</span
+        >
+        @if (error('text'); as message) {
+          <p class="field-error" data-testid="error-text">{{ message }}</p>
+        }
+      </div>
+    </div>
+
+    <div class="form-grid form-grid-captcha">
+      <div class="field">
+        <label for="captchaAnswer">CAPTCHA <span class="req">*</span></label>
+        <div class="captcha-row">
+          <button
+            type="button"
+            class="captcha-image-btn"
+            data-testid="captcha-image-button"
+            title="Обновить CAPTCHA"
+            (click)="loadCaptcha()"
+          >
+            @if (captchaImage()) {
+              <img
+                class="captcha-image"
+                data-testid="captcha-image"
+                [class.is-loading]="captchaLoading()"
+                [src]="captchaImage()"
+                alt="CAPTCHA"
+                width="180"
+                height="60"
+              />
+            } @else {
+              <span class="captcha-placeholder">{{ captchaLoading() ? 'Загрузка…' : 'CAPTCHA' }}</span>
+            }
+          </button>
+          <input
+            id="captchaAnswer"
+            name="captchaAnswer"
+            data-testid="captcha-answer"
+            type="text"
+            maxlength="16"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="код с картинки"
+            [value]="captchaAnswer()"
+            [class.is-invalid]="hasError('captcha')"
+            (input)="onCaptchaInput($event)"
+          />
+          <button
+            type="button"
+            class="btn btn-ghost btn-small"
+            data-testid="captcha-refresh"
+            [disabled]="captchaLoading()"
+            (click)="loadCaptcha()"
+          >
+            Обновить
+          </button>
+        </div>
+        @if (captchaStatus()) {
+          <p class="captcha-status" data-testid="captcha-status" [class.is-error]="captchaError()">
+            {{ captchaStatus() }}
+          </p>
+        }
+        @if (error('captcha'); as message) {
+          <p class="field-error" data-testid="error-captcha">{{ message }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label for="attachment">Вложение</label>
+        <input
+          #fileInput
+          id="attachment"
+          name="attachment"
+          data-testid="attachment-input"
+          type="file"
+          accept=".jpg,.jpeg,.png,.gif,.txt,image/jpeg,image/png,image/gif,text/plain"
+          [class.is-invalid]="hasError('attachment')"
+          (change)="onAttachmentChange($event)"
+        />
+        <p class="field-hint">
+          Изображение JPG/GIF/PNG ≤ 5 МБ (сервер уменьшит до 320×240) или TXT ≤ 100 КБ.
+        </p>
+        @if (attachmentPreviewUrl(); as url) {
+          <div class="attachment-preview" data-testid="attachment-preview">
+            <img
+              class="attachment-thumb"
+              [src]="url"
+              [alt]="'Превью ' + (attachment()?.name || 'файла')"
+              title="Предпросмотр (нажмите, чтобы открыть)"
+              (click)="openAttachmentPreview()"
+            />
+            <div class="attachment-info">
+              <span class="attachment-name">{{ attachment()?.name }}</span>
+              <span class="attachment-size">{{ formatBytes(attachment()?.size) }}</span>
+              @if (attachmentDim(); as dim) {
+                <span class="attachment-note">
+                  @if (dim.width > LIMITS.imageMaxWidth || dim.height > LIMITS.imageMaxHeight) {
+                    {{ dim.width }}×{{ dim.height }} → будет пропорционально уменьшено до ≤
+                    {{ LIMITS.imageMaxWidth }}×{{ LIMITS.imageMaxHeight }} px
+                  } @else {
+                    {{ dim.width }}×{{ dim.height }} px — уменьшение не потребуется
+                  }
+                </span>
+              }
+            </div>
+          </div>
+        } @else if (attachment() && !attachmentCheck().error) {
+          <div class="attachment-preview" data-testid="attachment-preview">
+            <div class="attachment-info">
+              <span class="attachment-name">{{ attachment()?.name }}</span>
+              <span class="attachment-size">{{ formatBytes(attachment()?.size) }}</span>
+              <span class="attachment-note"
+                >Текстовый файл — будет доступен для просмотра после отправки</span
+              >
+            </div>
+          </div>
+        }
+        @if (error('attachment'); as message) {
+          <p class="field-error" data-testid="error-attachment">{{ message }}</p>
+        }
+      </div>
+    </div>
+
+    <section class="preview-block" aria-labelledby="preview-title">
+      <div class="preview-head">
+        <h3 id="preview-title">Предпросмотр</h3>
+        @if (previewTouched()) {
+          <span
+            class="preview-badge"
+            data-testid="preview-badge"
+            [class.is-valid]="previewValid()"
+            [class.is-invalid]="!previewValid()"
+            >{{ previewValid() ? 'Корректно' : 'Есть ошибки' }}</span
+          >
+        }
+      </div>
+      @if (previewLoading()) {
+        <div class="preview-panel is-loading" data-testid="preview-output">
+          Загрузка предпросмотра…
+        </div>
+      } @else if (previewHtml()) {
+        <div class="preview-panel" data-testid="preview-output" [innerHTML]="previewHtml()"></div>
+      } @else {
+        <div class="preview-panel is-empty" data-testid="preview-output">
+          Здесь появится предпросмотр сообщения.
+        </div>
+      }
+      @if (previewErrors().length) {
+        <div class="preview-errors" data-testid="preview-errors" role="alert">
+          <ul>
+            @for (item of previewErrors(); track $index) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        data-testid="preview-button"
+        [disabled]="previewLoading()"
+        (click)="runPreview()"
+      >
+        Предпросмотр
+      </button>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        data-testid="submit-button"
+        [disabled]="submitting()"
+      >
+        {{ submitting() ? 'Отправка…' : 'Отправить' }}
+      </button>
+      <span class="form-hint">Ctrl+Enter — предпросмотр</span>
+    </div>
+  </form>
+</section>

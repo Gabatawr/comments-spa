@@ -1,0 +1,22 @@
+# Контекст сборки = src/Frontend. Исключаем всё, что не нужно образу.
+node_modules
+**/node_modules
+dist
+.angular
+.npm-cache
+npm-debug.log
+yarn-error.log
+
+.vscode
+.idea
+.git
+.gitignore
+.gitattributes
+.editorconfig
+.prettierrc
+
+README.md
+Dockerfile
+.dockerignore
+proxy.conf.json
+*.log

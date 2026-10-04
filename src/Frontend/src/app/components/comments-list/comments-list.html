@@ -1,0 +1,202 @@
+<section class="card comments-card" aria-labelledby="comments-title">
+  <div class="section-head">
+    <h2 id="comments-title">Комментарии</h2>
+    <button type="button" class="btn btn-ghost" data-testid="comments-refresh" (click)="store.refresh()">
+      Обновить
+    </button>
+  </div>
+
+  <p
+    class="comments-status"
+    data-testid="comments-status"
+    [class.is-error]="!!store.error()"
+    [attr.data-state]="store.error() ? 'error' : 'ok'"
+  >
+    {{ store.statusText() }}
+  </p>
+
+  @if (store.items().length || store.loading()) {
+    <div class="table-wrap">
+      @if (store.loading()) {
+        <div class="loading-overlay" data-testid="comments-loading">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="loading-text">Загрузка…</span>
+        </div>
+      }
+      <table
+        class="comments-table"
+        data-testid="comments-table"
+        [attr.aria-busy]="store.loading() ? 'true' : 'false'"
+      >
+        <thead>
+          <tr>
+            <th
+              scope="col"
+              class="th-sortable"
+              data-testid="sort-user-name"
+              tabindex="0"
+              [class.is-sorted]="isSorted('userName')"
+              [class.is-asc]="isSorted('userName') && store.sortDir() === 'asc'"
+              [class.is-desc]="isSorted('userName') && store.sortDir() === 'desc'"
+              [attr.aria-sort]="ariaSort('userName')"
+              (click)="store.setSort('userName')"
+              (keydown)="onHeadKey($event, 'userName')"
+            >
+              User Name <span class="sort-arrow" aria-hidden="true">{{ sortArrow('userName') }}</span>
+            </th>
+            <th
+              scope="col"
+              class="th-sortable"
+              data-testid="sort-email"
+              tabindex="0"
+              [class.is-sorted]="isSorted('email')"
+              [class.is-asc]="isSorted('email') && store.sortDir() === 'asc'"
+              [class.is-desc]="isSorted('email') && store.sortDir() === 'desc'"
+              [attr.aria-sort]="ariaSort('email')"
+              (click)="store.setSort('email')"
+              (keydown)="onHeadKey($event, 'email')"
+            >
+              E-mail <span class="sort-arrow" aria-hidden="true">{{ sortArrow('email') }}</span>
+            </th>
+            <th
+              scope="col"
+              class="th-sortable"
+              data-testid="sort-created-at"
+              tabindex="0"
+              [class.is-sorted]="isSorted('createdAt')"
+              [class.is-asc]="isSorted('createdAt') && store.sortDir() === 'asc'"
+              [class.is-desc]="isSorted('createdAt') && store.sortDir() === 'desc'"
+              [attr.aria-sort]="ariaSort('createdAt')"
+              (click)="store.setSort('createdAt')"
+              (keydown)="onHeadKey($event, 'createdAt')"
+            >
+              Дата <span class="sort-arrow" aria-hidden="true">{{ sortArrow('createdAt') }}</span>
+            </th>
+            <th scope="col">Комментарий</th>
+            <th scope="col">Файл</th>
+            <th scope="col" class="col-actions">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (comment of store.items(); track comment.id) {
+            <tr
+              class="root-row"
+              data-testid="comment-row"
+              [attr.data-comment-id]="comment.id"
+              [class.is-expanded]="isExpanded(comment.id)"
+            >
+              <td class="cell-user">
+                <span class="cell-username">{{ comment.userName }}</span>
+              </td>
+              <td class="cell-email">{{ comment.email }}</td>
+              <td class="cell-date" [title]="comment.createdAt">
+                {{ formatDate(comment.createdAt) }}
+              </td>
+              <td class="cell-text">{{ truncate(comment.textPlain, 140) }}</td>
+              <td class="cell-file">
+                @if (comment.attachment; as att) {
+                  <span class="file-badge" aria-hidden="true">{{
+                    att.kind === 'image' ? '🖼' : '📄'
+                  }}</span>
+                  <span class="file-badge-name">{{ truncate(att.fileName, 24) }}</span>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td class="cell-actions">
+                <div class="row-actions">
+                  @if (replyCount(comment) > 0) {
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-small btn-toggle"
+                      data-testid="reply-toggle"
+                      [attr.aria-expanded]="isExpanded(comment.id) ? 'true' : 'false'"
+                      (click)="toggle(comment)"
+                    >
+                      {{ isExpanded(comment.id) ? 'Свернуть' : replyCount(comment) + ' ' + replyWord(replyCount(comment)) }}
+                    </button>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-small btn-reply"
+                    data-testid="reply-button"
+                    (click)="store.requestReply(comment)"
+                  >
+                    Ответить
+                  </button>
+                </div>
+              </td>
+            </tr>
+            @if (isExpanded(comment.id)) {
+              <tr class="detail-row">
+                <td class="detail-cell" colspan="6">
+                  <div class="cascade" data-testid="reply-cascade">
+                    <app-comment-node
+                      [comment]="comment"
+                      [depth]="0"
+                      (reply)="store.requestReply($event)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else if (store.loaded()) {
+    <div class="empty-state" data-testid="comments-empty">
+      Пока нет комментариев — станьте первым!
+    </div>
+  }
+
+  @if (pages().length) {
+    <nav
+      class="pagination"
+      data-testid="pagination"
+      [attr.data-page]="store.page()"
+      [attr.data-page-size]="store.pageSize"
+      [attr.data-total-pages]="store.totalPages()"
+      aria-label="Постраничная навигация"
+    >
+      <button
+        type="button"
+        class="page-btn page-prev"
+        data-testid="page-prev"
+        [disabled]="store.page() <= 1"
+        aria-label="Предыдущая страница"
+        (click)="goPage(store.page() - 1)"
+      >
+        ‹
+      </button>
+      @for (page of pages(); track $index) {
+        @if (page === 'gap') {
+          <span class="page-gap">…</span>
+        } @else {
+          <button
+            type="button"
+            class="page-btn page-num"
+            [attr.data-testid]="'page-num-' + page"
+            [class.is-current]="page === store.page()"
+            [disabled]="page === store.page()"
+            (click)="goPage(page)"
+          >
+            {{ page }}
+          </button>
+        }
+      }
+      <button
+        type="button"
+        class="page-btn page-next"
+        data-testid="page-next"
+        [disabled]="store.page() >= store.totalPages()"
+        aria-label="Следующая страница"
+        (click)="goPage(store.page() + 1)"
+      >
+        ›
+      </button>
+    </nav>
+  }
+</section>
