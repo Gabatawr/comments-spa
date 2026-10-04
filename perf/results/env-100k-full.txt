@@ -1,0 +1,9 @@
+label:            100k-full
+date_utc:         2026-10-04T15:13:50Z
+git_sha:          5e8a407
+host_nproc:       6
+host_mem_total:   11Gi
+target_rows:      100000
+base_url:         http://localhost:8081
+scenarios:        SEARCH_ENABLED=true CREATE_ENABLED=true WS_ENABLED=true
+actual_total:     {"totalComments":100013,"totalRoots":10007,"totalAttachments":0,"oldestAt":"2026-10-04T15:05:21.26854Z","newestAt":"2026-10-04T15:13:13.761749Z","cacheHitRate":0.5}
