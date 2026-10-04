@@ -18,6 +18,16 @@
 tests/
 docs/
 TASK.md
+AGENTS.md
+
+# Local secrets: never ship `.env` (only the non-secret example).
+.env
+.env.*
+!.env.example
+
+# Infra / load-test assets are not part of the app build context.
+infra/
+perf/
 
 # Local state
 *.db

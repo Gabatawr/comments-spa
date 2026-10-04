@@ -1,0 +1,170 @@
+{
+  "rabbit_version": "3.13.0",
+  "users": [],
+  "vhosts": [],
+  "permissions": [],
+  "topic_permissions": [],
+  "parameters": [],
+  "global_parameters": [],
+  "policies": [
+    {
+      "vhost": "/",
+      "name": "comments-dlx-retry",
+      "pattern": "^comments\\.events\\.",
+      "apply-to": "queues",
+      "definition": {
+        "dead-letter-exchange": "comments.dlx"
+      },
+      "priority": 1
+    }
+  ],
+  "queues": [
+    {
+      "name": "comments.events.ws",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "comments.dlx",
+        "x-dead-letter-routing-key": "comments.events.ws.dlq"
+      }
+    },
+    {
+      "name": "comments.events.ws.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "comments.events.search",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "comments.dlx",
+        "x-dead-letter-routing-key": "comments.events.search.dlq"
+      }
+    },
+    {
+      "name": "comments.events.search.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "comments.events.cache",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "comments.dlx",
+        "x-dead-letter-routing-key": "comments.events.cache.dlq"
+      }
+    },
+    {
+      "name": "comments.events.cache.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "comments.events.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "comments.events"
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "comments.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "comments.dlx",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "comments.events",
+      "vhost": "/",
+      "destination": "comments.events.ws",
+      "destination_type": "queue",
+      "routing_key": "comment.created",
+      "arguments": {}
+    },
+    {
+      "source": "comments.events",
+      "vhost": "/",
+      "destination": "comments.events.search",
+      "destination_type": "queue",
+      "routing_key": "comment.created",
+      "arguments": {}
+    },
+    {
+      "source": "comments.events",
+      "vhost": "/",
+      "destination": "comments.events.cache",
+      "destination_type": "queue",
+      "routing_key": "comment.created",
+      "arguments": {}
+    },
+    {
+      "source": "comments.dlx",
+      "vhost": "/",
+      "destination": "comments.events.ws.dlq",
+      "destination_type": "queue",
+      "routing_key": "comments.events.ws.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "comments.dlx",
+      "vhost": "/",
+      "destination": "comments.events.search.dlq",
+      "destination_type": "queue",
+      "routing_key": "comments.events.search.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "comments.dlx",
+      "vhost": "/",
+      "destination": "comments.events.cache.dlq",
+      "destination_type": "queue",
+      "routing_key": "comments.events.cache.dlq",
+      "arguments": {}
+    },
+    {
+      "source": "comments.dlx",
+      "vhost": "/",
+      "destination": "comments.events.retry",
+      "destination_type": "queue",
+      "routing_key": "comment.retry",
+      "arguments": {}
+    },
+    {
+      "source": "comments.events",
+      "vhost": "/",
+      "destination": "comments.events.retry",
+      "destination_type": "queue",
+      "routing_key": "comment.retry",
+      "arguments": {}
+    }
+  ]
+}

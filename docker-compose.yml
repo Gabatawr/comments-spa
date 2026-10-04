@@ -1,74 +1,311 @@
-# ---------------------------------------------------------------------------
-# SPA «Комментарии» — docker compose stack
+# ===========================================================================
+# SPA «Комментарии» — stage 2 (Middle+) Docker Compose stack
 #
-#   docker compose up --build -d
-#   open http://localhost:8080
+#   docker compose up --build -d          # full stack: data + api + web (Production)
+#   docker compose up -d postgres redis rabbitmq elasticsearch   # data only
 #
-# Default DB is SQLite (file on a named volume). The Middle-level path
-# (PostgreSQL, Redis, Elasticsearch, message broker) is sketched in comments
-# at the bottom and is intentionally NOT started by default.
-# ---------------------------------------------------------------------------
+# Dev/load mode (Development api: seed endpoint + captcha peek enabled) uses the
+# override file; the default stack stays Production, as QA expects:
+#   docker compose -f docker-compose.yml -f infra/compose.dev.yml up -d --build
+#   docker compose -f docker-compose.yml -f infra/compose.dev.yml \
+#       --profile load run --rm k6 run /scripts/scenarios.js
+#   docker compose -f docker-compose.yml -f infra/compose.dev.yml \
+#       --profile tools run --rm seed
+#
+# Contract: docs/API-v2.md §7 (RabbitMQ topology), §8 (data model),
+#           §9 (cache keys), §10 (environment variables).
+# Rules:    AGENTS.md — project-prefixed names only, never prune,
+#           never touch other projects' containers/images/volumes.
+#
+# Credentials live ONLY in .env.example (non-secret local-dev defaults).
+# Every value is overridable via `${VAR:-default}`; copy .env.example -> .env.
+# ===========================================================================
 
+name: comments-spa
+
+# ---------------------------------------------------------------------------
+# Small reusable fragments
+# ---------------------------------------------------------------------------
+x-postgres-env: &postgres-env
+  POSTGRES_DB: ${POSTGRES_DB:-comments}
+  POSTGRES_USER: ${POSTGRES_USER:-comments}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comments}
+  POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+  TZ: UTC
+
+x-api-env: &api-env
+  # Default stack is Production (dev seed/captcha-peek endpoints return 404).
+  # For load/seeding use the override: infra/compose.dev.yml (see infra/README.md).
+  ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+  ASPNETCORE_URLS: http://+:8080
+  DOTNET_EnableDiagnostics: "0"
+  # Client IP / User-Agent must survive the nginx hop (API-v2 §6).
+  ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+  # --- PostgreSQL (API-v2 §10) ---
+  ConnectionStrings__Default: >-
+    Host=postgres;Port=5432;Database=${POSTGRES_DB:-comments};Username=${POSTGRES_USER:-comments};Password=${POSTGRES_PASSWORD:-comments}
+  # --- Redis (cache + captcha store) ---
+  Redis__ConnectionString: ${REDIS_CONNECTION_STRING:-redis:6379}
+  Cache__Provider: ${CACHE_PROVIDER:-redis}
+  # --- RabbitMQ (events) ---
+  # Non-guest default user: `guest` is restricted to loopback and would be
+  # rejected from other containers. Set RABBITMQ_* in .env to change.
+  RabbitMq__ConnectionString: ${RABBITMQ_CONNECTION_STRING:-amqp://comments:comments@rabbitmq:5672/}
+  Messaging__Provider: ${MESSAGING_PROVIDER:-rabbitmq}
+  # --- Elasticsearch (search index) ---
+  Elastic__Url: ${ELASTIC_URL:-http://elasticsearch:9200}
+  Search__Enabled: "${SEARCH_ENABLED:-true}"
+  # --- Storage (local filesystem; S3/Azure are documented seams only) ---
+  Storage__Provider: ${STORAGE_PROVIDER:-filesystem}
+  Storage__Root: /app/storage
+  # --- Proxy trust (nginx sets X-Forwarded-*) ---
+  Proxy__TrustAll: "${PROXY_TRUST_ALL:-true}"
+  # --- Feature flags: off by default (Production). infra/compose.dev.yml turns
+  #     them on together with ASPNETCORE_ENVIRONMENT=Development for the
+  #     `tools` (seed) and `load` (k6) profiles. ---
+  Features__Seed: "${FEATURES_SEED:-false}"
+  Features__DevCaptchaPeek: "${FEATURES_DEV_CAPTCHA_PEEK:-false}"
+
+# ===========================================================================
 services:
-  comments:
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL 16 — primary store (EF Core migrations own the schema)
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: comments-spa-postgres
+    environment: *postgres-env
+    ports:
+      - "${POSTGRES_HOST_PORT:-55432}:5432"
+    volumes:
+      - comments-spa-postgres-data:/var/lib/postgresql/data
+      # Runs once on an empty data dir. Schema stays with EF migrations;
+      # the script only tunes the cluster (see infra/postgres/init.sql).
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    networks: [comments-spa-net]
+
+  # -------------------------------------------------------------------------
+  # Redis 7 — page cache (comments:*) + CAPTCHA store, AOF persistence
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: comments-spa-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_HOST_PORT:-56379}:6379"
+    volumes:
+      - comments-spa-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+    networks: [comments-spa-net]
+
+  # -------------------------------------------------------------------------
+  # RabbitMQ 3 — topic exchange comments.events + comments.dlx (API-v2 §7).
+  # Topology is declared by the API's messaging adapter at startup;
+  # infra/rabbitmq/definitions.json is an optional pre-provisioning/reference
+  # import (see infra/README.md) and is intentionally NOT auto-loaded.
+  # NOTE: no host-mounted rabbitmq.conf — files in this workspace are mode 600
+  # (uid 1000) and the broker user (~uid 100) cannot read them (eacces).
+  # The non-guest default user below removes the need for that config.
+  # -------------------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: comments-spa-rabbitmq
+    hostname: comments-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-comments}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-comments}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
+    ports:
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_HOST_PORT:-15672}:15672"
+    volumes:
+      - comments-spa-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      # Fresh-volume first boot provisions user/vhost/persistence and can take
+      # >2 min; the old 30s+12-retry window marked it unhealthy and aborted
+      # `up`. Keep a generous window so a cold start always succeeds.
+      start_period: 120s
+    restart: unless-stopped
+    networks: [comments-spa-net]
+
+  # -------------------------------------------------------------------------
+  # Elasticsearch 8.15.3 — comment search index. Single node, security off,
+  # heap capped at 512m (host has other containers; ES is memory hungry).
+  # -------------------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: comments-spa-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "false"
+    ports:
+      - "${ELASTIC_HOST_PORT:-59200}:9200"
+    volumes:
+      - comments-spa-elasticsearch-data:/usr/share/elasticsearch/data
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      # ES initialises its state dir on a fresh volume; allow a cold start too.
+      start_period: 120s
+    restart: unless-stopped
+    networks: [comments-spa-net]
+
+  # -------------------------------------------------------------------------
+  # API — Clean Architecture composition root (image built by `api` teammate)
+  # -------------------------------------------------------------------------
+  api:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: comments-spa:latest
-    container_name: comments-spa
+      dockerfile: src/Backend/Comments.Api/Dockerfile
+    image: comments-spa-api:local
+    container_name: comments-spa-api
+    environment: *api-env
     ports:
-      - "8080:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: "Data Source=/app/data/comments.db"
-      Storage__Root: /app/storage
-      Features__DevCaptchaPeek: "false"
-      # Reverse-proxy awareness (client IP identification):
-      # ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      - "${API_HOST_PORT:-8081}:8080"
     volumes:
-      - comments-data:/app/data
-      - comments-storage:/app/storage
+      - comments-spa-api-storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
-      interval: 30s
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/api/health >/dev/null || exit 1"]
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 25s
+      retries: 24
+      # Cold start runs EF migrations + advisory lock + index/topology setup.
+      start_period: 60s
     restart: unless-stopped
+    networks: [comments-spa-net]
 
+  # -------------------------------------------------------------------------
+  # Web — Angular build served by nginx; /api + /ws proxied to api:8080
+  # (image built by the `web` teammate from src/Frontend/Dockerfile)
+  # -------------------------------------------------------------------------
+  web:
+    build:
+      context: ./src/Frontend
+      dockerfile: Dockerfile
+    image: comments-spa-web:local
+    container_name: comments-spa-web
+    ports:
+      - "${WEB_HOST_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    restart: unless-stopped
+    networks: [comments-spa-net]
+
+  # -------------------------------------------------------------------------
+  # k6 — load profile. Not started by `up`; run explicitly:
+  #   docker compose --profile load run --rm k6 run /scripts/scenarios.js
+  # `perf/k6` is mounted read-only; `perf/results` receives the summary.
+  # `user: root` keeps the writable results bind mount working regardless of
+  # host file modes (perf teammate owns perf/).
+  # -------------------------------------------------------------------------
+  k6:
+    image: grafana/k6:latest
+    container_name: comments-spa-k6
+    profiles: ["load"]
+    user: "root"
+    working_dir: /scripts
+    environment:
+      BASE_URL: ${K6_BASE_URL:-http://api:8080}
+      WS_URL: ${K6_WS_URL:-ws://api:8080/ws}
+      API_URL: ${K6_API_URL:-http://api:8080}
+      RUN_LABEL: ${RUN_LABEL:-default}
+      SUMMARY_DIR: /results
+    volumes:
+      - ./perf/k6:/scripts:ro
+      - ./perf/results:/results
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+    networks: [comments-spa-net]
+
+  # -------------------------------------------------------------------------
+  # Seed — one-shot dev seeding helper for the `tools` profile:
+  #   docker compose --profile tools run --rm seed
+  # Requires the API to expose POST /api/dev/seed (Features__Seed=true).
+  # -------------------------------------------------------------------------
+  seed:
+    image: alpine:latest
+    container_name: comments-spa-seed
+    profiles: ["tools"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: ${SEED_API_BASE_URL:-http://api:8080}
+      SEED_COUNT: ${SEED_COUNT:-10000}
+      SEED_ROOTS: ${SEED_ROOTS:-1000}
+      SEED_DEPTH: ${SEED_DEPTH:-3}
+      SEED_BATCH_SIZE: ${SEED_BATCH_SIZE:-1000}
+      SEED_CLEAR: ${SEED_CLEAR:-false}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        BODY="{\"count\":$${SEED_COUNT},\"roots\":$${SEED_ROOTS},\"depth\":$${SEED_DEPTH},\"batchSize\":$${SEED_BATCH_SIZE},\"clear\":$${SEED_CLEAR}}"
+        echo "[seed] POST $${API_BASE_URL}/api/dev/seed $${BODY}"
+        wget -qO- --header='Content-Type: application/json' --post-data="$${BODY}" "$${API_BASE_URL}/api/dev/seed"
+        echo
+        echo "[seed] done"
+    restart: "no"
+    networks: [comments-spa-net]
+
+# ===========================================================================
+# Named resources — every name is project-prefixed (AGENTS.md).
+# ===========================================================================
 volumes:
-  comments-data:
-  comments-storage:
+  comments-spa-postgres-data:
+    name: comments-spa-postgres-data
+  comments-spa-redis-data:
+    name: comments-spa-redis-data
+  comments-spa-rabbitmq-data:
+    name: comments-spa-rabbitmq-data
+  comments-spa-elasticsearch-data:
+    name: comments-spa-elasticsearch-data
+  comments-spa-api-storage:
+    name: comments-spa-api-storage
 
-# ---------------------------------------------------------------------------
-# Middle-level path (NOT enabled — out of scope for this assignment).
-# To switch the app to PostgreSQL: add Npgsql provider in the backend, then
-# enable the service below and point ConnectionStrings__Default at it.
-# ---------------------------------------------------------------------------
-#  postgres:
-#    image: postgres:16-alpine
-#    environment:
-#      POSTGRES_DB: comments
-#      POSTGRES_USER: comments
-#      POSTGRES_PASSWORD: comments
-#    volumes:
-#      - comments-pg:/var/lib/postgresql/data
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U comments"]
-#      interval: 10s
-#      timeout: 5s
-#      retries: 5
-#
-#  redis:
-#    image: redis:7-alpine
-#
-#  rabbitmq:
-#    image: rabbitmq:3-management-alpine
-#    ports: ["15672:15672"]
-#
-#  elasticsearch:
-#    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.0
-#    environment:
-#      discovery.type: single-node
-#      xpack.security.enabled: "false"
+networks:
+  comments-spa-net:
+    name: comments-spa-net
+    driver: bridge
