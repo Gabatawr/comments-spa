@@ -1,5 +1,5 @@
 using System.Xml.Linq;
-using CommentsApi.Validation;
+using Comments.Application.Validation;
 using Xunit;
 
 namespace CommentsApi.Tests;
