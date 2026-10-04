@@ -1,0 +1,40 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+*.coverage
+
+# App data / storage
+*.db
+*.db-shm
+*.db-wal
+comments.db*
+src/Backend/CommentsApi/storage/
+src/Backend/CommentsApi/wwwroot/
+
+# Repo-local NuGet cache (see NuGet.config)
+.nuget/
+.nuget-packages/
+**/.nuget-packages/
+
+# Node (QA frontend tests)
+node_modules/
+package-lock.json
+coverage/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# misc
+*.log
+.env
+
+# Docker buildx state (sandbox workaround)
+.buildx/

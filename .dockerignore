@@ -1,0 +1,43 @@
+# Build context exclusions for the Docker image.
+**/bin/
+**/obj/
+**/.vs/
+**/TestResults/
+**/*.user
+
+# Repo-local NuGet caches (restore happens inside the image)
+.nuget/
+**/.nuget/
+**/.nuget-packages/
+
+.git/
+.gitignore
+.github/
+
+# QA assets are not needed in the runtime image.
+tests/
+docs/
+TASK.md
+
+# Local state
+*.db
+*.db-shm
+*.db-wal
+**/storage/
+**/wwwroot/
+
+node_modules/
+**/node_modules/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docker buildx state (sandbox workaround)
+.buildx/
