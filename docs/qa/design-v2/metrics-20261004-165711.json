@@ -1,0 +1,315 @@
+{
+  "tag": "20261004-165711",
+  "base": "http://127.0.0.1:33745",
+  "viewport": {
+    "width": 1000,
+    "height": 900
+  },
+  "dsf": 2,
+  "cascadeBox": {
+    "x": 38,
+    "y": -0.453125,
+    "width": 914,
+    "height": 1188.734375
+  },
+  "notes": [
+    "expanded via [data-testid=\"reply-toggle\"]",
+    "viewport adjusted 1000 -> 990 to match reference canvas width 914px"
+  ],
+  "cascade": {
+    "x": 38,
+    "y": 0,
+    "w": 914,
+    "h": 1189
+  },
+  "cards": [
+    {
+      "depth": 0,
+      "rect": {
+        "x": 70,
+        "y": 24,
+        "w": 850,
+        "h": 1133
+      },
+      "header": {
+        "h": 56,
+        "bg": "#f5f6f7"
+      },
+      "contentLeft": 110,
+      "avatar": {
+        "x": 110,
+        "y": 62,
+        "w": 44,
+        "h": 44
+      },
+      "name": {
+        "text": "Anonym",
+        "fontSize": "17px",
+        "color": "#0a1833",
+        "fontWeight": "700"
+      },
+      "date": {
+        "text": "04.10.26 в 15:27",
+        "fontSize": "15px",
+        "color": "#848b99"
+      },
+      "iconCount": 20,
+      "iconSizes": [
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20"
+      ],
+      "iconColor": "#7b95c8",
+      "body": {
+        "left": 70,
+        "fontSize": "16px",
+        "color": "#475266",
+        "lineHeight": "24.8px"
+      },
+      "quote": {
+        "left": 134,
+        "borderLeft": "2px solid #b3c2e1",
+        "textColor": "#848b99",
+        "fontStyle": "normal",
+        "text": "Каждый из нас понимает очевидную вещь: семантический разбор "
+      },
+      "vote": {
+        "text": "↑0↓",
+        "color": "#848b99"
+      }
+    },
+    {
+      "depth": 1,
+      "rect": {
+        "x": 102,
+        "y": 252,
+        "w": 818,
+        "h": 869
+      },
+      "header": {
+        "h": 56,
+        "bg": "#f5f7fb"
+      },
+      "contentLeft": 142,
+      "avatar": {
+        "x": 142,
+        "y": 290,
+        "w": 44,
+        "h": 44
+      },
+      "name": {
+        "text": "Rum_8",
+        "fontSize": "17px",
+        "color": "#0a1833",
+        "fontWeight": "700"
+      },
+      "date": {
+        "text": "04.10.26 в 15:57",
+        "fontSize": "15px",
+        "color": "#848b99"
+      },
+      "iconCount": 16,
+      "iconSizes": [
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20"
+      ],
+      "iconColor": "#7b95c8",
+      "body": {
+        "left": 102,
+        "fontSize": "16px",
+        "color": "#475266",
+        "lineHeight": "24.8px"
+      },
+      "quote": {
+        "left": 134,
+        "borderLeft": "2px solid #b3c2e1",
+        "textColor": "#848b99",
+        "fontStyle": "normal",
+        "text": "Каждый из нас понимает очевидную вещь: семантический разбор "
+      },
+      "vote": {
+        "text": "↑0↓",
+        "color": "#848b99"
+      }
+    },
+    {
+      "depth": 2,
+      "rect": {
+        "x": 134,
+        "y": 469,
+        "w": 786,
+        "h": 652
+      },
+      "header": {
+        "h": 56,
+        "bg": "#f5f6f7"
+      },
+      "contentLeft": 174,
+      "avatar": {
+        "x": 174,
+        "y": 507,
+        "w": 44,
+        "h": 44
+      },
+      "name": {
+        "text": "Anonym",
+        "fontSize": "17px",
+        "color": "#0a1833",
+        "fontWeight": "700"
+      },
+      "date": {
+        "text": "04.10.26 в 16:17",
+        "fontSize": "15px",
+        "color": "#848b99"
+      },
+      "iconCount": 12,
+      "iconSizes": [
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20"
+      ],
+      "iconColor": "#7b95c8",
+      "body": {
+        "left": 134,
+        "fontSize": "16px",
+        "color": "#475266",
+        "lineHeight": "24.8px"
+      },
+      "quote": {
+        "left": 166,
+        "borderLeft": "2px solid #b3c2e1",
+        "textColor": "#848b99",
+        "fontStyle": "normal",
+        "text": "Внезапно, тщательные исследования конкурентов, которые предс"
+      },
+      "vote": {
+        "text": "↑0↓",
+        "color": "#848b99"
+      }
+    },
+    {
+      "depth": 3,
+      "rect": {
+        "x": 166,
+        "y": 686,
+        "w": 754,
+        "h": 434
+      },
+      "header": {
+        "h": 56,
+        "bg": "#f5f7fb"
+      },
+      "contentLeft": 206,
+      "avatar": {
+        "x": 206,
+        "y": 724,
+        "w": 44,
+        "h": 44
+      },
+      "name": {
+        "text": "Anonym",
+        "fontSize": "17px",
+        "color": "#0a1833",
+        "fontWeight": "700"
+      },
+      "date": {
+        "text": "04.10.26 в 16:32",
+        "fontSize": "15px",
+        "color": "#848b99"
+      },
+      "iconCount": 8,
+      "iconSizes": [
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20"
+      ],
+      "iconColor": "#7b95c8",
+      "body": {
+        "left": 166,
+        "fontSize": "16px",
+        "color": "#475266",
+        "lineHeight": "24.8px"
+      },
+      "quote": {
+        "left": 198,
+        "borderLeft": "2px solid #b3c2e1",
+        "textColor": "#848b99",
+        "fontStyle": "normal",
+        "text": "Идейные соображения высшего порядка, а также понимание сути "
+      },
+      "vote": {
+        "text": "↑0↓",
+        "color": "#848b99"
+      }
+    },
+    {
+      "depth": 4,
+      "rect": {
+        "x": 198,
+        "y": 854,
+        "w": 722,
+        "h": 267
+      },
+      "header": {
+        "h": 56,
+        "bg": "#f5f6f7"
+      },
+      "contentLeft": 238,
+      "avatar": {
+        "x": 238,
+        "y": 892,
+        "w": 44,
+        "h": 44
+      },
+      "name": {
+        "text": "Anonym",
+        "fontSize": "17px",
+        "color": "#0a1833",
+        "fontWeight": "700"
+      },
+      "date": {
+        "text": "04.10.26 в 16:47",
+        "fontSize": "15px",
+        "color": "#848b99"
+      },
+      "iconCount": 4,
+      "iconSizes": [
+        "20x20",
+        "20x20",
+        "20x20",
+        "20x20"
+      ],
+      "iconColor": "#7b95c8",
+      "body": {
+        "left": 198,
+        "fontSize": "16px",
+        "color": "#475266",
+        "lineHeight": "24.8px"
+      },
+      "quote": {
+        "left": 230,
+        "borderLeft": "2px solid #b3c2e1",
+        "textColor": "#848b99",
+        "fontStyle": "normal",
+        "text": "А ещё интерактивные прототипы являются только методом полити"
+      },
+      "vote": {
+        "text": "↑0↓",
+        "color": "#848b99"
+      }
+    }
+  ]
+}
