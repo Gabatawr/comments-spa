@@ -1,4 +1,4 @@
-using CommentsApi.Services;
+using Comments.Application.Services;
 using CommentsApi.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
