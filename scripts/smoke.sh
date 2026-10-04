@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Quick smoke check of a running instance.
 # Delegates to the full QA suite (tests/e2e/smoke.sh) when present.
-# Usage: ./scripts/smoke.sh [base-url]   (default http://localhost:5080)
+# Usage: ./scripts/smoke.sh [base-url]   (default http://localhost:8080 — nginx/SPA)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="${1:-http://localhost:5080}"
+BASE="${1:-http://localhost:8080}"
 
-if [[ -x "$ROOT/tests/e2e/smoke.sh" ]]; then
-    exec "$ROOT/tests/e2e/smoke.sh" "$BASE"
+if [[ -f "$ROOT/tests/e2e/smoke.sh" ]]; then
+    bash "$ROOT/tests/e2e/smoke.sh" "$BASE"
+    exit $?
 fi
 
 echo "==> Basic smoke against $BASE"
@@ -25,11 +26,11 @@ check() {
 }
 
 check "health"   "$BASE/api/health"   200
+check "live"     "$BASE/api/health/live" 200
 check "captcha"  "$BASE/api/captcha"  200
 check "comments" "$BASE/api/comments" 200
 check "spa"      "$BASE/"             200
 
-if grep -qi 'ok' /tmp/smoke_body.$$ 2>/dev/null; then :; fi
 rm -f /tmp/smoke_body.$$
 
 if [[ "$fail" -eq 0 ]]; then
