@@ -1,10 +1,16 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { CommentsStore } from '../../core/comments.store';
-import { formatDate, replyWord, truncate } from '../../core/format';
-import { CommentDto, SortBy } from '../../core/models';
+import { SortBy } from '../../core/models';
 import { CommentNodeComponent } from '../comment-node/comment-node';
 
-/** Таблица корневых комментариев: сортировка asc/desc, пагинация 25, каскад ответов. */
+/**
+ * Таблица корневых комментариев: сортировка asc/desc по User Name / E-mail / дате,
+ * пагинация по 25.
+ *
+ * Строка таблицы — сам корневой комментарий, отрисованный карточкой по образцу ТЗ;
+ * вложенные ответы раскрываются рекурсивно внутри него. Тумблера «свернуть» нет:
+ * скрывать нечего, а дубль «строка таблицы + карточка того же корня» устранён.
+ */
 @Component({
   selector: 'app-comments-list',
   imports: [CommentNodeComponent],
@@ -12,11 +18,6 @@ import { CommentNodeComponent } from '../comment-node/comment-node';
 })
 export class CommentsListComponent {
   readonly store = inject(CommentsStore);
-  readonly expanded = signal<ReadonlySet<number>>(new Set());
-
-  readonly truncate = truncate;
-  readonly formatDate = formatDate;
-  readonly replyWord = replyWord;
 
   readonly pages = computed<(number | 'gap')[]>(() => {
     const total = this.store.totalPages();
@@ -43,24 +44,6 @@ export class CommentsListComponent {
     }
     return out;
   });
-
-  isExpanded(id: number): boolean {
-    return this.expanded().has(id);
-  }
-
-  toggle(comment: CommentDto): void {
-    const next = new Set(this.expanded());
-    if (next.has(comment.id)) {
-      next.delete(comment.id);
-    } else {
-      next.add(comment.id);
-    }
-    this.expanded.set(next);
-  }
-
-  replyCount(comment: CommentDto): number {
-    return Number(comment.replyCount) || (Array.isArray(comment.replies) ? comment.replies.length : 0);
-  }
 
   isSorted(field: SortBy): boolean {
     return this.store.sortBy() === field;

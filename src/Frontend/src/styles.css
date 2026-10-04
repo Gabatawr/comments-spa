@@ -750,75 +750,29 @@ h3 {
   vertical-align: middle;
 }
 
-.root-row:hover {
-  background: #fafbfe;
-}
-
-.root-row.is-expanded {
-  background: #f4f8ff;
-}
-
-.cell-user {
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.cell-email,
-.cell-date {
-  white-space: nowrap;
-  color: var(--text-soft);
-}
-
-.cell-text {
-  color: var(--text-soft);
-  max-width: 320px;
-}
-
-.cell-file {
-  white-space: nowrap;
-}
-
-.file-badge {
-  margin-right: 4px;
-}
-
-.file-badge-name {
-  color: var(--muted);
-  font-size: 12px;
+/*
+ * Ячейка корневого комментария: карточка занимает всю ширину строки, поэтому
+ * собственных полей у ячейки нет — воздух вокруг даёт .cascade.
+ */
+.comments-table tbody td.root-cell {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
 }
 
 .muted {
   color: var(--muted);
 }
 
-.col-actions,
-.cell-actions {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.row-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.btn-toggle {
-  color: var(--accent-dark);
-  border-color: #c8dbf8;
-  background: var(--accent-soft);
-}
-
 /* --------------------------- cascade / cards --------------------------- */
-.detail-row > .detail-cell {
-  padding: 0;
-  border-bottom: 1px solid var(--border);
-  background: #f5f7fb;
-}
 
 .cascade {
-  padding: 24px 32px 32px;
+  /*
+   * Внешних полей нет: плашку шапки от края карточки отделяет margin самого
+   * .comment-head (32px) — ровно как в образце. Двойной padding давал 64px
+   * по бокам и 56px сверху, то есть вдвое больше эталона.
+   */
+  padding: 0;
   /*
    * Цитата однострочная (white-space: nowrap), поэтому её max-content ширина
    * не должна раздувать auto-раскладку таблицы. inline-size containment
@@ -847,15 +801,15 @@ h3 {
 }
 
 /*
- * Шапка — отдельная серая плашка с полями 32px внутри белой карточки
- * (измерено: карточка x 32..881, плашка x 64..849, высота 56px).
+ * Шапка — серая плашка во всю ширину карточки, высота 56px.
+ * Внешних отступов нет: band примыкает к краям, снизу 16px до тела.
  */
 .comment-head {
   display: flex;
   align-items: center;
   gap: 20px;
   height: 56px;
-  margin: 32px 32px 16px;
+  margin: 0 0 16px;
   padding: 0 8px;
   background: #f5f6f7;
   border-radius: 2px;
@@ -1133,14 +1087,14 @@ h3 {
 }
 
 /*
- * Вложенность: 32px на уровень (30px отступ + 2px линия). Шапка ребёнка
- * сдвинута так же, как тело. Линию оставляем (контракт §5 + Playwright-чек),
- * но тонкой 2px #e0e2e6, чтобы почти не отличалась от образца.
+ * Вложенность: ровно 32px на уровень (замер образца: плашки x=64 → 96 → 128).
+ * Шапка ребёнка сдвинута так же, как тело. Вертикальной линии-рельса в
+ * образце нет — вложенность выражена только сдвигом.
  */
 .comment-children {
-  margin: 0 0 0 30px;
+  margin: 0 0 0 32px;
   padding-left: 0;
-  border-left: 2px solid #e0e2e6;
+  border-left: 0;
 }
 
 .comment-children > .comment-card + .comment-card {
@@ -1533,10 +1487,6 @@ h3 {
   .form-grid-captcha {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .cell-text {
-    max-width: 200px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1560,10 +1510,6 @@ h3 {
 
   .table-wrap {
     overflow-x: auto;
-  }
-
-  .comments-table {
-    min-width: 620px;
   }
 
   .comment-children {
@@ -1642,10 +1588,6 @@ app-comment-node {
 
 .field-row .field-error {
   text-align: right;
-}
-
-.comments-table tbody tr.detail-row:hover {
-  background: transparent;
 }
 
 .comment-card + .comment-card {

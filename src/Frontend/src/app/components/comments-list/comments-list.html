@@ -72,76 +72,26 @@
             >
               Дата <span class="sort-arrow" aria-hidden="true">{{ sortArrow('createdAt') }}</span>
             </th>
-            <th scope="col">Комментарий</th>
-            <th scope="col">Файл</th>
-            <th scope="col" class="col-actions">Действия</th>
           </tr>
         </thead>
         <tbody>
           @for (comment of store.items(); track comment.id) {
-            <tr
-              class="root-row"
-              data-testid="comment-row"
-              [attr.data-comment-id]="comment.id"
-              [class.is-expanded]="isExpanded(comment.id)"
-            >
-              <td class="cell-user">
-                <span class="cell-username">{{ comment.userName }}</span>
-              </td>
-              <td class="cell-email">{{ comment.email }}</td>
-              <td class="cell-date" [title]="comment.createdAt">
-                {{ formatDate(comment.createdAt) }}
-              </td>
-              <td class="cell-text">{{ truncate(comment.textPlain, 140) }}</td>
-              <td class="cell-file">
-                @if (comment.attachment; as att) {
-                  <span class="file-badge" aria-hidden="true">{{
-                    att.kind === 'image' ? '🖼' : '📄'
-                  }}</span>
-                  <span class="file-badge-name">{{ truncate(att.fileName, 24) }}</span>
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </td>
-              <td class="cell-actions">
-                <div class="row-actions">
-                  @if (replyCount(comment) > 0) {
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-small btn-toggle"
-                      data-testid="reply-toggle"
-                      [attr.aria-expanded]="isExpanded(comment.id) ? 'true' : 'false'"
-                      (click)="toggle(comment)"
-                    >
-                      {{ isExpanded(comment.id) ? 'Свернуть' : replyCount(comment) + ' ' + replyWord(replyCount(comment)) }}
-                    </button>
-                  } @else {
-                    <span class="muted">—</span>
-                  }
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-small btn-reply"
-                    data-testid="reply-button"
-                    (click)="store.requestReply(comment)"
-                  >
-                    Ответить
-                  </button>
+            <!--
+              Строка таблицы И ЕСТЬ корневой комментарий: карточка по образцу,
+              вложенные ответы раскрыты рекурсивно внутри неё. Тумблера нет —
+              скрывать нечего, дубля «строка + карточка» тоже нет.
+            -->
+            <tr class="root-row" data-testid="comment-row" [attr.data-comment-id]="comment.id">
+              <td class="root-cell" colspan="3">
+                <div class="cascade" data-testid="reply-cascade">
+                  <app-comment-node
+                    [comment]="comment"
+                    [depth]="0"
+                    (reply)="store.requestReply($event)"
+                  />
                 </div>
               </td>
             </tr>
-            @if (isExpanded(comment.id)) {
-              <tr class="detail-row">
-                <td class="detail-cell" colspan="6">
-                  <div class="cascade" data-testid="reply-cascade">
-                    <app-comment-node
-                      [comment]="comment"
-                      [depth]="0"
-                      (reply)="store.requestReply($event)"
-                    />
-                  </div>
-                </td>
-              </tr>
-            }
           }
         </tbody>
       </table>

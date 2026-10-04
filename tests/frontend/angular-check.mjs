@@ -148,7 +148,6 @@ const SEL = {
   textarea: ['[data-testid="textarea"]', 'textarea[name="text"]', 'form textarea', 'textarea'],
   previewOut: ['[data-testid="preview-output"]', '.preview', '.preview-content', '[class*="preview"]'],
   captcha: ['[data-testid="captcha-image"]', 'img[src^="data:image/png"]'],
-  replyToggle: ['[data-testid="reply-toggle"]', 'button:has-text("Reply")', 'button:has-text("Ответить")', 'a:has-text("Ответить")', 'a:has-text("Reply")'],
   cascade: ['[data-testid="reply-cascade"]', '.replies', '[class*="replies"]', '[class*="cascade"]', '[class*="children"]'],
 };
 
@@ -203,9 +202,11 @@ async function visibleUserOrder() {
   const n = Math.min(await rows.count(), 25);
   const names = [];
   for (let i = 0; i < n; i++) {
-    const t = (await rows.nth(i).innerText()).replace(/\s+/g, ' ').trim();
-    const m = t.match(/([A-Za-z0-9_]+)/);
-    names.push(m ? m[1] : t);
+    // Строка таблицы — это карточка целиком, поэтому имя берём строго по его
+    // классу: иначе первым совпадением окажутся инициалы в аватаре.
+    const el = rows.nth(i).locator('.comment-username').first();
+    const t = (await el.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    names.push(t || `row-${i}`);
   }
   return names;
 }
@@ -259,7 +260,7 @@ try {
   }
 } catch (e) { check('pagination', false, String(e.message || e)); await shot('pagination'); }
 
-// 4. reply cascade renders
+// 4. root row is the comment card itself; replies are expanded by default
 try {
   await page.evaluate(() => window.scrollTo(0, 0));
   // Reset to default LIFO so the newest thread root (our fixture) is on page 1.
@@ -268,29 +269,31 @@ try {
   if (!(await rootRow.count())) {
     skipCheck('reply cascade renders', 'root thread row not visible on page 1');
   } else {
-    const toggle = rootRow.locator('[data-testid="reply-toggle"]').first();
-    if (!(await toggle.count())) {
-      skipCheck('reply cascade renders', 'root row has no reply-toggle (replyCount not shown)');
-    } else {
-      await toggle.click();
-      await wait(1500);
-      const cascade = rootRow.locator('xpath=following-sibling::tr[1]').locator('[data-testid="reply-cascade"]').first();
-      const children = page.locator('[data-testid="reply-children"]').first();
-      check('reply cascade container renders', (await cascade.count()) > 0, 'no reply-cascade after toggle');
-      const depth1 = page.locator('[data-testid="comment-card"][data-depth="1"]').filter({ hasText: `${TAG}ReplyOne` }).first();
-      check('nested reply (depth 1) renders in cascade', (await depth1.count()) > 0, 'no comment-card depth=1 with ReplyOne');
-      if (await children.count()) {
-        const rootBox = await rootRow.boundingBox();
-        const childBox = await children.boundingBox();
-        if (rootBox && childBox) check('cascade is indented relative to root', childBox.x > rootBox.x, `root.x=${rootBox.x} children.x=${childBox.x}`);
-        const border = await children.evaluate((el) => {
-          const cs = getComputedStyle(el);
-          return { w: cs.borderLeftWidth, style: cs.borderLeftStyle };
-        });
-        check('cascade has a left quote bar (border-left)', parseFloat(border.w) > 0, JSON.stringify(border));
-      } else {
-        skipCheck('cascade indent/quote-bar', 'no reply-children container');
+    // Тумблера «свернуть» больше нет: строка таблицы И ЕСТЬ карточка корня,
+    // вложенные ответы раскрыты внутри неё сразу.
+    const rootCard = rootRow.locator('[data-testid="comment-card"][data-depth="0"]').first();
+    check('root row renders the comment card itself', (await rootCard.count()) > 0, 'no comment-card depth=0 inside the row');
+    check('root row has no collapse toggle', (await rootRow.locator('[data-testid="reply-toggle"]').count()) === 0, 'reply-toggle still present');
+    const cascade = rootRow.locator('[data-testid="reply-cascade"]').first();
+    check('reply cascade container renders', (await cascade.count()) > 0, 'no reply-cascade inside the row');
+    const depth1 = rootRow.locator('[data-testid="comment-card"][data-depth="1"]').filter({ hasText: `${TAG}ReplyOne` }).first();
+    check('nested reply (depth 1) renders expanded by default', (await depth1.count()) > 0, 'no comment-card depth=1 with ReplyOne');
+    const children = rootRow.locator('[data-testid="reply-children"]').first();
+    if (await children.count()) {
+      const rootBox = await rootCard.boundingBox();
+      const childBox = await children.boundingBox();
+      if (rootBox && childBox) check('cascade is indented relative to root', childBox.x > rootBox.x, `root.x=${rootBox.x} children.x=${childBox.x}`);
+      if (rootBox && childBox) {
+        const indent = childBox.x - rootBox.x;
+        check('nesting indent is 32px per level', Math.abs(indent - 32) <= 1, `indent=${indent}`);
       }
+      const rail = await children.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { left: cs.borderLeftWidth, right: cs.borderRightWidth };
+      });
+      check('no nesting rail (sample has none)', parseFloat(rail.left) === 0 && parseFloat(rail.right) === 0, JSON.stringify(rail));
+    } else {
+      skipCheck('cascade indent/quote-bar', 'no reply-children container');
     }
   }
 } catch (e) { check('reply cascade', false, String(e.message || e)); await shot('cascade'); }
