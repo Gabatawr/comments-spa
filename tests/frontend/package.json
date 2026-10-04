@@ -1,0 +1,11 @@
+{
+  "name": "comments-spa-frontend-harness",
+  "private": true,
+  "description": "QA jsdom harness that boots the real SPA modules against a live API",
+  "scripts": {
+    "harness": "node dom-harness.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
