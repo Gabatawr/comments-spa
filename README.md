@@ -43,13 +43,35 @@ Cloud SQL) задокументированы в [`docs/API-v2.md`](docs/API-v2.
 
 ## Быстрый старт (Docker)
 
-Нужен только Docker с плагином compose.
+**Требования**
+
+| | |
+|---|---|
+| Docker Engine | 24 или новее |
+| Docker Compose | v2 — это плагин `docker compose`, а не `docker-compose` |
+| Память | от 4 ГБ (Elasticsearch работает с лимитом 2 ГБ) |
+| Диск | от 15 ГБ свободных |
+| Порты на хосте | 8080, 8081, 55432, 56379, 5672, 15672, 59200 — **все переназначаются**, см. «Порты и `.env`» |
+
+Проверить, что окружение подходит и порты свободны, можно одной командой:
 
 ```bash
-git clone <URL-репозитория> comments-spa
+scripts/preflight.sh
+```
+
+**Запуск**
+
+```bash
+git clone https://github.com/Gabatawr/comments-spa.git
 cd comments-spa
 docker compose up --build -d
 ```
+
+> Первая сборка скачивает ~3 ГБ образов (один Elasticsearch — 1.9 ГБ) и занимает
+> 5–10 минут. Это не зависание: прогресс видно в `docker compose logs -f`.
+
+Все переменные окружения имеют дефолты, поэтому `.env` не обязателен — стек поднимется
+как есть. Он нужен только чтобы поменять порты, пароли или провайдера.
 
 Поднимается весь стек: `api`, `web` (nginx + Angular), `postgres`, `redis`, `rabbitmq`,
 `elasticsearch`. Дождитесь, пока все сервисы станут `healthy`:
@@ -65,7 +87,7 @@ docker compose ps
 | <http://localhost:8081/api/health> | health API напрямую |
 | <http://localhost:8081/swagger> | OpenAPI UI (только Development) |
 | <http://localhost:8081/graphql> | GraphQL playground (только Development) |
-| <http://localhost:15672> | RabbitMQ management (guest/guest — локальные dev-креды) |
+| <http://localhost:15672> | RabbitMQ management (`comments` / `comments` — локальные dev-креды) |
 | <http://localhost:59200> | Elasticsearch |
 | `ws://localhost:8080/ws` | WebSocket живых обновлений |
 
@@ -75,7 +97,31 @@ docker compose down                # остановить (данные в volum
 docker compose down -v             # остановить и удалить данные ТОЛЬКО этого проекта
 ```
 
+### Порты и `.env`
+
+Если какой-то порт занят, стек не поднимется — это самая частая причина «не запустилось».
+Переназначить любой порт можно без правки compose:
+
+```bash
+cp .env.example .env
+```
+
+и в `.env` поменять нужные `*_HOST_PORT`, например:
+
+```ini
+WEB_HOST_PORT=9080
+API_HOST_PORT=9081
+```
+
+`.env` не попадает в git. Кроме портов там пароли БД и брокера, а также выбор провайдера
+(`Providers__*`) — полный список с комментариями лежит в `.env.example`, а дефолты
+безопасны для локального запуска.
+
 ## Самопроверка с нуля (строго по README)
+
+ТЗ требует: «попробуйте запустить свой проект с нуля по вашему Read.me из вашего
+Git-репозитория». Ниже — ровно те команды, которыми это проверяется на чистой машине,
+где есть только Docker.
 
 Полная приёмочная цепочка одной командой (чистая сборка, тесты, стек с нуля, smoke, k6):
 
@@ -86,6 +132,9 @@ scripts/acceptance.sh
 Отдельные шаги:
 
 ```bash
+# 0) окружение: docker, версии, свободные порты
+scripts/preflight.sh
+
 # 1) чистая сборка + 325 тестов против реального PostgreSQL (поднимет postgres из compose)
 CLEAN=1 scripts/test.sh
 
@@ -93,8 +142,9 @@ CLEAN=1 scripts/test.sh
 docker compose down -v && docker compose up --build -d
 docker compose ps
 
-# 3) e2e и нагрузка
+# 3) e2e, браузерная проверка Angular, нагрузка
 tests/e2e/smoke.sh http://localhost:8080
+tests/frontend/run-browser-check.sh http://localhost:8080
 docker compose --profile load run --rm k6 run /scripts/scenarios.js
 ```
 
@@ -220,9 +270,11 @@ docs/DESIGN-v2.1-decisions.md         # замороженные решения 
 docs/qa/checklist-v2.md               # матрица требований
 perf/                                 # k6-сценарии, seed, результаты
 infra/                                # конфиги сервисов + профиль S3 (compose.s3.yml)
+infra/hetzner/                        # развёртывание на VDS: cloud-init, systemd-unit, deploy.sh
 tests/CommentsApi.Tests/              # xUnit против PostgreSQL
 tests/e2e/                            # curl/GraphQL e2e
 tests/frontend/                       # браузерная проверка Angular
+scripts/preflight.sh                  # проверка окружения перед запуском
 scripts/test.sh                       # тесты против PostgreSQL
 scripts/run-dev.sh                    # локальный API
 scripts/acceptance.sh                 # полная приёмка
@@ -280,12 +332,38 @@ tests/e2e/smoke.sh http://localhost:8080
 
 ---
 
+## Развёртывание на VDS
+
+Стенд развёрнут на Hetzner Cloud и переживает перезагрузку: при загрузке стек поднимает
+systemd-unit, данные остаются в docker-томах.
+
+| | |
+|---|---|
+| Адрес | <http://2.28.27.229/> |
+| Тип | `cx23` — 2 vCPU / 4 ГБ / 40 ГБ. Минимальный x86-инстанс, которого хватает |
+| Стоимость | ≈ $0.0114/ч, то есть ≈ $7.09/мес с IPv4 |
+| Наружу открыт | только порт 80; API, PostgreSQL, Redis, RabbitMQ и Elasticsearch слушают `127.0.0.1` |
+
+Воспроизводится одной командой, артефакты — в [`infra/hetzner/`](infra/hetzner/README.md):
+
+```bash
+export HCLOUD_TOKEN=...
+infra/hetzner/deploy.sh create --repo https://github.com/Gabatawr/comments-spa.git
+```
+
+Подробности — что делает cloud-init, как обновлять код, как остановить оплату —
+в [`infra/hetzner/README.md`](infra/hetzner/README.md).
+
+---
+
 ## Известные ограничения / вне зоны
 
-- **Развёртывание на хостинге/VDS** — вне зоны задания (нет аккаунтов). Docker-упаковка
-  и запуск на хосте проверены. Само переключение на облако проверено локально: профиль
-  `infra/compose.s3.yml` поднимает S3-совместимый сервер, и стек с `Providers__Storage=s3` кладёт вложения
-  в бакет — `/api/info` показывает `storage=s3`, `status=ok`.
+- **HTTPS и домена нет** — стенд отдаётся по `http://<ip>/`. Для TLS нужен домен и
+  reverse-proxy с сертификатом; это следующий шаг, а не сделанное.
+- **Переключение на объектное хранилище проверено без облачного аккаунта**: профиль
+  `infra/compose.s3.yml` поднимает S3-совместимый сервер, и стек с `Providers__Storage=s3`
+  кладёт вложения в бакет — `/api/info` показывает `storage=s3`, `status=ok`, а том API
+  остаётся пустым.
 - **Облачные адаптеры, требующие аккаунта, не проверялись живьём** (AWS S3, Azure Blob, managed
   Elasticsearch/OpenSearch): реализация и переключение есть, реальных вызовов облачных API нет.
   Для Azure Blob есть отдельный путь без секретов — `DefaultAzureCredential` (managed identity).

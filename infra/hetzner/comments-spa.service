@@ -1,0 +1,30 @@
+; ---------------------------------------------------------------------------
+; comments-spa.service — bring the stack up on boot.
+;
+; Installed by infra/hetzner/cloud-init.sh from this very path, so the
+; repository is the single source of truth for the unit.
+;
+;   systemctl status comments-spa
+;   systemctl restart comments-spa
+;
+; Deliberately build-less: the images are built once by cloud-init (or by you:
+; `docker compose up -d --build`). A `--build` here would make every reboot
+; re-run the build. After changing code, rebuild explicitly.
+; ---------------------------------------------------------------------------
+[Unit]
+Description=comments-spa — SPA «Комментарии» (Middle+) demo stack
+Documentation=file:/srv/comments-spa/README.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/srv/comments-spa
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
