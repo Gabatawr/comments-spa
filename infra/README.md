@@ -9,6 +9,7 @@ Docker resources) and `docs/API-v2.md` §7–§10.
 | Path | Purpose |
 |---|---|
 | `compose.dev.yml` | Override enabling Development mode (dev seed endpoint + captcha peek) for the `tools`/`load` profiles. Use with `-f docker-compose.yml -f infra/compose.dev.yml`. |
+| `compose.s3.yml` | Override adding an S3-compatible server (`adobe/s3mock`) and pointing the API at it (`Providers__Storage=s3`), so the provider switch can be demonstrated end to end without an AWS account. The file header shows the MinIO swap for a real host. |
 | `postgres/init.sql` | Runs once on an empty data dir. Only tunes the cluster (UTC, `pg_trgm`). **Schema is owned by EF Core migrations.** |
 | `rabbitmq/definitions.json` | Reference/optional pre-provisioning of the API-v2 §7 topology (`comments.events`, `comments.dlx`, `*.dlq`, retry queue). **Not auto-loaded** — see below. |
 
@@ -53,6 +54,35 @@ docker compose $DEV --profile tools run --rm seed
 docker compose --profile load --profile tools down -v
 ```
 
+### Provider switch: object storage (S3-compatible)
+
+Proves that "swap the storage provider by configuration" is real rather than documented:
+
+```bash
+docker compose -f docker-compose.yml -f infra/compose.s3.yml up -d --build
+
+curl -s localhost:8081/api/info | jq '.providers[] | select(.port=="storage")'
+# → { "port": "storage", "value": "s3", "status": "ok", "alternatives": ["filesystem","azureblob"], ... }
+
+# upload a comment with an image, then confirm the object is in the bucket:
+docker exec comments-spa-s3 sh -c 'ls -R /s3mockroot'
+
+# and that the volume stayed empty:
+docker exec comments-spa-api sh -lc 'find /app/storage -type f | head'
+
+# back to the local filesystem
+docker compose -f docker-compose.yml up -d api
+```
+
+The API image is byte-identical in both cases — only `Providers__Storage` and the `Storage__S3__*`
+variables change, which is the same thing you would set for AWS S3, MinIO, Yandex Object Storage,
+Cloudflare R2 or DigitalOcean Spaces. The file header of `compose.s3.yml` shows the two-line MinIO
+swap for a real host.
+
+Any other port switches the same way (see `.env.example`): `Providers__Cache=memory`,
+`Providers__Messaging=inmemory`, `Providers__Search=none`. An unknown value is a startup error,
+and `GET /api/info` always reports what is actually wired.
+
 ## Host ports
 
 | Service | Host | Container |
@@ -63,6 +93,7 @@ docker compose --profile load --profile tools down -v
 | redis | 56379 | 6379 |
 | rabbitmq AMQP / UI | 5672 / 15672 | 5672 / 15672 |
 | elasticsearch | 59200 | 9200 |
+| s3 (S3 API, `compose.s3.yml` only) | 59000 | 9090 |
 
 ## Connection defaults (local dev, non-secret)
 
@@ -72,6 +103,7 @@ docker compose --profile load --profile tools down -v
 | Redis | `localhost:56379` |
 | RabbitMQ | `amqp://comments:comments@rabbitmq:5672/` (management UI `comments`/`comments`) |
 | Elasticsearch | `http://localhost:59200` |
+| S3 (`compose.s3.yml`) | endpoint `http://s3:9090` (host `http://localhost:59000`), bucket `comments-attachments`, any credentials |
 
 ## RabbitMQ topology ownership
 

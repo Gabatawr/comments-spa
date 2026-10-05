@@ -86,7 +86,7 @@ scripts/acceptance.sh
 Отдельные шаги:
 
 ```bash
-# 1) чистая сборка + 285 тестов против реального PostgreSQL (поднимет postgres из compose)
+# 1) чистая сборка + 325 тестов против реального PostgreSQL (поднимет postgres из compose)
 CLEAN=1 scripts/test.sh
 
 # 2) стек с нуля
@@ -141,6 +141,12 @@ scripts/run-dev.sh          # API в Development на http://localhost:5080 (+ c
   (WebSocket-broadcast, индексация в Elasticsearch, инвалидация кэша), **DLQ + retry**.
 - **GraphQL** — `comments`, `comment`, `search`, `createComment` (см. `docs/API-v2.md` §5).
 - **Elasticsearch** — полнотекстовый поиск `/api/search` с подсветкой, индексация по событию.
+- **Cloud-ready: переключатель провайдеров** — каждая внешняя зависимость за портом, выбор одним
+  конфигом (`Providers:*`), без правки кода. Реализованы S3-совместимое хранилище (AWS S3, MinIO,
+  Yandex Object Storage, Cloudflare R2, DO Spaces) и Azure Blob (connection string / SAS / managed
+  identity); поиск умеет basic auth, API key и приватный CA для managed-кластеров. `GET /api/info`
+  отдаёт активный набор и альтернативы по каждому порту, старт пишет его одной строкой в лог.
+  Неизвестное имя провайдера — **ошибка старта** со списком допустимых, а не тихий откат на дефолт.
 
 ### Middle+ (архитектура + измерения)
 - Индексы под сортировки/LIFO/дерево, отсутствие N+1 (BFS-выборка по уровням).
@@ -168,6 +174,32 @@ scripts/run-dev.sh          # API в Development на http://localhost:5080 (+ c
   [`docs/DESIGN-v2.1-decisions.md`](docs/DESIGN-v2.1-decisions.md) и
   [`docs/qa/design-v2/README.md`](docs/qa/design-v2/README.md).
 
+### v2.2 — cloud-ready переключатель провайдеров
+- **Один переключатель на весь внешний мир.** `Providers:Database|Cache|Messaging|Search|Storage`
+  разбирается один раз при старте (`ProviderResolver` → `ActiveProviders`), и этот же снимок
+  используют композиционный корень, стартовый лог и `GET /api/info` — разойтись не могут.
+  Прежний синтаксис (`Cache:Provider`, `Storage:RootProvider`, `Search:Enabled`) продолжает работать.
+- **Объектное хранилище реализовано, а не заглушено**: `S3FileStorage` (AWS SDK: AWS S3, MinIO,
+  Yandex, R2, Spaces; пустые ключи = цепочка AWS, включая instance role) и `AzureBlobFileStorage`
+  (connection string / SAS / `DefaultAzureCredential`). Поиск умеет basic auth, API key и приватный
+  CA managed-кластера.
+- **Видно, что включено** — строка `Providers: …` в логе при старте и матрица
+  «порт → значение → статус → альтернативы» в `GET /api/info`.
+- **Ошибка конфига — отказ старта**, а не тихий откат: неизвестное имя перечисляет допустимые,
+  объявленный-но-нереализованный шов (`mssql`) говорит об этом прямо; `Providers:Strict=false`
+  оставляет прежнее поведение с предупреждением.
+- **Живая проверка переключения** — `infra/compose.s3.yml`: стек поднимается с S3-совместимым
+  сервером, вложение уходит в бакет, том API остаётся пустым, скачивание идёт стримом.
+  В песочнице, где снимался прогон, образы `minio/*` недоступны в реестре — использован
+  `adobe/s3mock`, замена на MinIO показана в шапке файла.
+- **Найдено и починено по дороге**: поиск создавал `HttpClient` без аутентификации (managed-кластер
+  так не подключить); `IFileStorage.GetFullPath` протекал файловой системой в порт (заменён на
+  `TryGetLocalPath` — объектное хранилище отказывается, веб-слой стримит); health хардкодил имена
+  провайдеров; секция `Providers:*` в `appsettings.json` перекрывала старые ключи окружения.
+- **Устаревшее убрано**: шапка `db/schema.sql` утверждала SQLite, `tests/README.md` описывал
+  снесённый DOM-харнесс, `AGENTS.md` — состояние v1; старые документы помечены как исторические.
+- Отчёт с измерениями: [`docs/qa/report-v2.2.md`](docs/qa/report-v2.2.md).
+
 ---
 
 ## Структура репозитория
@@ -187,7 +219,7 @@ docs/qa/design-v2/README.md           # скриншоты каскада vs о�
 docs/DESIGN-v2.1-decisions.md         # замороженные решения по каскаду v2.1 и цитатам
 docs/qa/checklist-v2.md               # матрица требований
 perf/                                 # k6-сценарии, seed, результаты
-infra/                                # конфиги postgres/redis/rabbitmq/elasticsearch
+infra/                                # конфиги сервисов + профиль S3 (compose.s3.yml)
 tests/CommentsApi.Tests/              # xUnit против PostgreSQL
 tests/e2e/                            # curl/GraphQL e2e
 tests/frontend/                       # браузерная проверка Angular
@@ -203,7 +235,7 @@ Comments.slnx                         # .NET-решение
 ## Тесты
 
 ```bash
-# полный набор против реального PostgreSQL (285: база v2.0 + тесты цитат v2.1)
+# полный набор против реального PostgreSQL (325: база v2.0 + цитаты v2.1 + провайдеры)
 CLEAN=1 scripts/test.sh
 
 # только unit-часть
@@ -226,26 +258,39 @@ tests/e2e/smoke.sh http://localhost:8080
 
 | Переменная | Значение по умолчанию (compose) | Назначение |
 |---|---|---|
-| `ConnectionStrings__Default` | `Host=postgres;Database=comments;Username=comments;Password=comments` | PostgreSQL |
-| `Redis__ConnectionString` | `redis:6379` | кэш |
-| `RabbitMq__ConnectionString` | `amqp://guest:guest@rabbitmq:5672/` | брокер |
+| `ConnectionStrings__Default` | `Host=postgres;Database=comments;…` | PostgreSQL |
+| `Redis__ConnectionString` | `redis:6379` | кэш (TLS — `rediss://`) |
+| `RabbitMq__ConnectionString` | `amqp://comments:comments@rabbitmq:5672/` | брокер (TLS — `amqps://`) |
 | `Elastic__Url` | `http://elasticsearch:9200` | поиск |
-| `Storage__Provider` | `filesystem` | хранилище файлов (S3/Azure — точка подмены) |
-| `Cache__Provider` | `redis` | `redis` \| `memory` |
-| `Messaging__Provider` | `rabbitmq` | `rabbitmq` \| `inmemory` |
-| `Search__Enabled` | `true` | Elasticsearch вкл/выкл |
+| `Search__Username` / `Search__Password` / `Search__ApiKey` | — | auth managed ES/OpenSearch |
+| `Providers__Database` | `postgres` | `postgres` \| `mssql` (шов, не реализован) |
+| `Providers__Cache` | `redis` | `redis` \| `memory` |
+| `Providers__Messaging` | `rabbitmq` | `rabbitmq` \| `inmemory` |
+| `Providers__Search` | `elastic` | `elastic` \| `none` |
+| `Providers__Storage` | `filesystem` | `filesystem` \| `s3` \| `azureblob` |
+| `Providers__Strict` | `true` | неизвестное имя провайдера → ошибка старта |
+| `Providers__FailFastOnUnavailable` | `false` | недоступный провайдер → ошибка старта |
+| `Storage__S3__*`, `Storage__AzureBlob__*` | — | бакет/контейнер/endpoint/креды облака |
 | `Proxy__TrustAll` | `true` | доверять `X-Forwarded-For` от nginx |
 | `Features__DevCaptchaPeek` | `false` | dev-ручка подсказки CAPTCHA |
 | `Features__Seed` | `false` | dev-ручка массового наполнения |
+
+Полный список ключей и что где лежит — `docs/API-v2.md` §10. Активный набор видно в
+`GET /api/info`, статусы — в `GET /api/health`.
 
 ---
 
 ## Известные ограничения / вне зоны
 
 - **Развёртывание на хостинге/VDS** — вне зоны задания (нет аккаунтов). Docker-упаковка
-  и запуск на хосте проверены; инструкция по облаку — только как точки подмены.
-- **Облачные сервисы** (S3, Azure Blob/Service Bus/Cache, OpenSearch) — не вызываются;
-  реализованы локальные адаптеры за интерфейсами-портами.
+  и запуск на хосте проверены. Само переключение на облако проверено локально: профиль
+  `infra/compose.s3.yml` поднимает S3-совместимый сервер, и стек с `Providers__Storage=s3` кладёт вложения
+  в бакет — `/api/info` показывает `storage=s3`, `status=ok`.
+- **Облачные адаптеры, требующие аккаунта, не проверялись живьём** (AWS S3, Azure Blob, managed
+  Elasticsearch/OpenSearch): реализация и переключение есть, реальных вызовов облачных API нет.
+  Для Azure Blob есть отдельный путь без секретов — `DefaultAzureCredential` (managed identity).
+- **`Providers__Database=mssql`** — объявленный шов под предпочтение ТЗ (MS SQL), не реализован:
+  нужен второй набор миграций. Выбор падает с точным сообщением.
 - **1 000 000 сообщений** — архитектура рассчитана и проверена seed-эндпоинтом и k6;
   фактический объём датасета указан в отчёте (не все величины достигнуты на этой машине).
 - SQLite/MySQL прошлого этапа в рабочем пути не используются; PostgreSQL — единственная БД.

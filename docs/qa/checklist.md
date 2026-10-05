@@ -1,5 +1,8 @@
 # QA checklist — SPA «Комментарии»
 
+> **Исторический документ (этап 1: SQLite + SPA на ES-модулях).** Актуальная матрица требований —
+> [`checklist-v2.md`](checklist-v2.md), актуальный отчёт — [`report-v2.1.md`](report-v2.1.md).
+
 Owner: **qa**. Sources: `TASK.md`, `docs/source/task-raw.txt`, `docs/API.md` (FROZEN v1),
 `docs/ARCHITECTURE.md`, reference UI `docs/task/page1-X10.png`.
 

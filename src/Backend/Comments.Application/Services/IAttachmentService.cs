@@ -68,7 +68,10 @@ public interface IAttachmentService
     /// <summary>Writes the bytes to storage and persists the <see cref="Attachment"/> row.</summary>
     Task<Attachment> PersistAsync(PreparedAttachment prepared, CancellationToken cancellationToken = default);
 
-    string GetStorageRoot();
-
-    string GetFullPath(Attachment attachment);
+    /// <summary>
+    /// Filesystem fast path for serving a stored attachment: <c>true</c> plus the absolute path
+    /// when the provider keeps bytes on disk, <c>false</c> for object stores — the caller then
+    /// streams through <see cref="Abstractions.Storage.IFileStorage.OpenReadAsync"/>.
+    /// </summary>
+    bool TryGetLocalPath(Attachment attachment, out string fullPath);
 }

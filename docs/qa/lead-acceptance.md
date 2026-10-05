@@ -1,5 +1,8 @@
 # Lead acceptance addendum — SPA «Комментарии»
 
+> **Исторический документ (этап 1).** Актуальные документы — [`checklist-v2.md`](checklist-v2.md),
+> [`report-v2.1.md`](report-v2.1.md).
+
 Owner: **lead**. This document records the verification that QA explicitly left to the Lead
 (`docs/qa/report.md` §5, `docs/qa/checklist.md` rows `ENV-04`…`ENV-07`, `ART-01`…`ART-07`,
 `MID-01`…`MID-05`). It complements, and does not replace, the QA report.

@@ -105,7 +105,7 @@ public sealed class InMemoryEventConsumer : BackgroundService, IEventConsumer, I
 
     /// <summary>
     /// The in-memory consumer is a degradation fallback, not a broker: report unavailable so
-    /// <c>health.broker</c> turns to "error" when Messaging:Provider=rabbitmq but the broker
+    /// <c>health.broker</c> turns to "error" when Providers:Messaging=rabbitmq but the broker
     /// could not be reached (docs/ARCHITECTURE-v2.md §5).
     /// </summary>
     public bool IsAvailable => false;

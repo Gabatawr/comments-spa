@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Comments.Api</RootNamespace>
     <AssemblyName>Comments.Api</AssemblyName>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 

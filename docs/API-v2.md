@@ -123,7 +123,7 @@ JSON-числа могут превышать 2^31; клиент Angular исп�
 
 ### 2.1 `GET /api/health`
 Возвращает 200, даже если часть зависимостей в статусе `degraded` (compose healthcheck смотрит
-на 200 + `status != "down"`). **[NEW]** поля `redis`, `broker`, `search`, `storage`:
+на 200 + `status != "down"`). **[NEW]** поля `redis`, `broker`, `search`, `storage`, `providers`:
 
 ```json
 {
@@ -136,14 +136,52 @@ JSON-числа могут превышать 2^31; клиент Angular исп�
   "broker": "ok",
   "search": "ok",
   "storage": "ok",
-  "version": "2.0.0"
+  "providers": {
+    "database": "postgres",
+    "cache": "redis",
+    "messaging": "rabbitmq",
+    "search": "elastic",
+    "storage": "filesystem"
+  },
+  "version": "2.2.0"
 }
 ```
 - `status`: `"ok"` если `database == "ok"`, иначе `"degraded"`.
-- Значения зависимостей: `"ok"` | `"error"` | `"disabled"` (фича выключена конфигом).
+- Значения зависимостей: `"ok"` | `"error"` | `"disabled"` (порт выключен или работает в процессе).
+- `providers` — **имя** адаптера за портом; статусы выше говорят, доступен ли он. Имена берутся из
+  переключателя (`Providers:*`, §10), а не из хардкода, поэтому новый адаптер появляется здесь сам.
 - `queue` — счётчики консьюмера (в broker-режиме: `pending` = неподтверждённые, `processed` = ack).
 - **`GET /api/health/live`** — process liveness, всегда 200 `{"status":"ok"}` (для orchestration).
 - **`GET /api/health/ready`** — 200 если БД доступна, иначе 503 (для оркестратора).
+
+#### 2.1.1 `GET /api/info` **[NEW]**
+Матрица провайдеров: что выбрано при старте и что ещё можно выбрать. Позволяет понять конфигурацию
+деплоя, не читая его переменные окружения.
+
+```json
+{
+  "version": "2.2.0",
+  "strict": true,
+  "failFastOnUnavailable": false,
+  "providers": [
+    {
+      "port": "storage",
+      "value": "s3",
+      "status": "ok",
+      "implemented": true,
+      "selfContained": false,
+      "description": "S3-compatible object storage: AWS S3, MinIO, Yandex Object Storage, Cloudflare R2, DO Spaces",
+      "alternatives": ["filesystem", "azureblob"]
+    }
+  ]
+}
+```
+- `status` — тот же словарь, что в `/api/health`: `disabled` означает внутрипроцессный адаптер
+  (или выключенный порт) — проверять нечего.
+- `selfContained` — адаптер живёт в процессе (`memory` / `inmemory` / `none`), внешней зависимости нет.
+- `alternatives` — допустимые значения порта, кроме активного: переключение это изменение
+  конфигурации, а не деплой.
+- `strict` / `failFastOnUnavailable` — действующие политики (см. §10).
 
 ### 2.2 `GET /api/captcha`
 ```json
@@ -591,17 +629,45 @@ type SearchHit {
 
 ## 10. Конфигурация (переменные окружения)
 
+### 10.1 Переключатель провайдеров
+
+| Переменная | Значение по умолчанию | Смысл |
+|---|---|---|
+| `Providers__Database` | `postgres` | `postgres` \| `mssql`\* |
+| `Providers__Cache` | `redis` | `redis` \| `memory` |
+| `Providers__Messaging` | `rabbitmq` | `rabbitmq` \| `inmemory` |
+| `Providers__Search` | `elastic` | `elastic` \| `none` |
+| `Providers__Storage` | `filesystem` | `filesystem` \| `s3` \| `azureblob` |
+| `Providers__Strict` | `true` | неизвестное/нереализованное имя → ошибка старта со списком допустимых |
+| `Providers__FailFastOnUnavailable` | `false` | выбранный провайдер недоступен → ошибка старта вместо деградации |
+
+\* `mssql` объявлен как шов (ТЗ предпочитает MS SQL) и не реализован: выбор падает с точным
+сообщением. Активный набор виден в `GET /api/health` (`providers`) и `GET /api/info` (§2.1.1).
+
+Старые ключи `Cache__Provider`, `Messaging__Provider`, `Storage__Provider`, `Search__Enabled`
+продолжают работать как алиасы (используются тестовой фабрикой). Канонический ключ выигрывает,
+если заданы оба.
+
+### 10.2 Подключения и адаптеры
+
 | Переменная | Значение по умолчанию | Смысл |
 |---|---|---|
 | `ConnectionStrings__Default` | `Host=postgres;Database=comments;Username=comments;Password=comments` | PostgreSQL |
-| `Redis__ConnectionString` | `redis:6379` | Redis |
-| `RabbitMq__ConnectionString` | `amqp://guest:guest@rabbitmq:5672/` | брокер |
-| `Elastic__Url` | `http://elasticsearch:9200` | ES |
-| `Storage__Provider` | `filesystem` | `filesystem` \| `s3` \| `azureblob` |
-| `Storage__Root` | `/app/storage` | FS-хранилище |
-| `Cache__Provider` | `redis` | `redis` \| `memory` |
-| `Messaging__Provider` | `rabbitmq` | `rabbitmq` \| `inmemory` |
-| `Search__Enabled` | `true` | ES вкл/выкл |
+| `Redis__ConnectionString` | `redis:6379` | Redis (поддерживается `rediss://` для TLS) |
+| `RabbitMq__ConnectionString` | `amqp://comments:comments@rabbitmq:5672/` | брокер (AMQP URI, TLS через `amqps://`) |
+| `Elastic__Url` | `http://elasticsearch:9200` | ES / OpenSearch |
+| `Search__Username`, `Search__Password` | — | basic auth управляемого кластера |
+| `Search__ApiKey` | — | api-key auth (приоритет над basic) |
+| `Search__AllowInvalidCertificate` | `false` | принимать приватный/самоподписанный CA |
+| `Storage__Root` | `/app/storage` | каталог для `filesystem` |
+| `Storage__S3__ServiceUrl` | — | пусто = AWS; иначе MinIO/Yandex/R2/Spaces |
+| `Storage__S3__Bucket` | — | **обязателен** при `Providers__Storage=s3` |
+| `Storage__S3__Prefix`, `__Region`, `__ForcePathStyle`, `__UseHttp`, `__TimeoutSeconds` | — | `ForcePathStyle` по умолчанию `true`, если задан `ServiceUrl` |
+| `Storage__S3__AccessKey`, `__SecretKey` | — | пусто = цепочка AWS (env, profile, ECS/EC2 instance role) |
+| `Storage__AzureBlob__ConnectionString` | — | либо строка подключения (Azurite тоже) |
+| `Storage__AzureBlob__AccountUrl` + `__SasToken` | — | либо URL аккаунта + SAS |
+| `Storage__AzureBlob__AccountUrl` без SAS | — | `DefaultAzureCredential` (managed identity, без секретов) |
+| `Storage__AzureBlob__Container` | — | **обязателен** при `Providers__Storage=azureblob` |
 | `Proxy__TrustAll` | `true` | доверять forwarded headers |
 | `Features__DevCaptchaPeek` | `false` | dev-ручка |
 | `Features__Seed` | `false` | seed-ручка |
@@ -611,19 +677,29 @@ type SearchHit {
 
 ---
 
-## 11. Точки подмены под облако (реализованы локально, задокументированы)
+## 11. Провайдеры и точки подмены под облако
 
-| Порт (`Application.Abstractions`) | Локальная реализация | Облачная замена | Где менять |
-|---|---|---|---|
-| `IFileStorage` | `FileSystemStorage` | S3 `IAmazonS3` / Azure `BlobContainerClient` | `Infrastructure/Storage` |
-| `ICacheService` | `RedisCacheService` / `MemoryCacheService` | ElastiCache / Azure Cache for Redis | `Infrastructure/Caching` |
-| `IEventPublisher` + `IEventConsumer` | `RabbitMqEventPublisher` | Azure Service Bus / Amazon SQS+SNS | `Infrastructure/Messaging` |
-| `ICommentSearchIndex` | `ElasticsearchSearchIndex` | OpenSearch / Azure AI Search | `Infrastructure/Search` |
-| `ICommentRepository` + `IUnitOfWork` | EF Core + Npgsql | Azure Database for PostgreSQL / Cloud SQL | `Infrastructure/Persistence` |
-| `ICaptchaStore` | Redis / memory | ElastiCache / distributed cache | `Infrastructure/Captcha` |
+Активный адаптер каждого порта выбирается конфигом (`Providers:*`, §10.1) и виден в
+`GET /api/info` (§2.1.1). Ниже — что работает уже сейчас и чем это заменяется в облаке.
 
-Никаких реальных вызовов облачных API в обязательном пути запуска. Всё поднимается
-`docker compose up --build` на хосте.
+| Порт (`Application.Abstractions`) | Реализовано сейчас | Облачная замена (то же значение конфига) |
+|---|---|---|
+| `IFileStorage` | `FileSystemStorage` (локальный/общий том), **`S3FileStorage`** (AWS S3, MinIO, Yandex, R2, Spaces), **`AzureBlobFileStorage`** (connection string / SAS / managed identity) | меняется значением `Providers__Storage`, код не трогается |
+| `ICacheService` | `RedisBackedCacheService` (+ memory-fallback), `MemoryCacheService` | `rediss://user:pass@host:6380` — TLS и пароль поддерживаются |
+| `IEventPublisher` + `IEventConsumer` | `RabbitMqEventBus`, `InMemoryEventConsumer` | `amqps://…`; CloudAMQP / Amazon MQ / Service Bus AMQP |
+| `ICommentSearchIndex` | `ElasticsearchSearchIndex` (**basic auth, API key, приватный CA**), `NoopSearchIndex` | `Search__Username`/`Password` или `Search__ApiKey` + `Elastic__Url` на managed-кластер |
+| `ICommentRepository` + `IUnitOfWork` | EF Core + Npgsql | строка подключения на managed PostgreSQL |
+| `ICaptchaStore` | Redis / memory | тот же порт Redis |
+
+Объектное хранилище проверяется локально: `infra/compose.s3.yml` поднимает S3-совместимый сервер, и стек с
+`Providers__Storage=s3` кладёт вложения в бакет (`/api/info` отвечает `storage=s3`,
+`status=ok`). Скачивание идёт через `IFileStorage.OpenReadAsync`, потому что у объектного
+хранилища нет локального пути: `IFileStorage.TryGetLocalPath` возвращает `false`, и веб-слой
+больше не проверяет имя провайдера.
+
+Локальных заглушек, падающих на `NotSupportedException`, больше нет. Единственный
+нереализованный шов — `Providers__Database=mssql` (ТЗ предпочитает MS SQL), и он объявлен
+в каталоге явно, поэтому выбор падает с точным сообщением, а не с «неизвестное значение».
 
 ---
 

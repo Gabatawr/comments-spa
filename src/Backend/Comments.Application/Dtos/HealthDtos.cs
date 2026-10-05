@@ -21,7 +21,14 @@ public sealed class HealthDto
     /// <summary>"ok" | "error" | "disabled".</summary>
     public string Storage { get; set; } = "ok";
 
-    public string Version { get; set; } = "2.1.0";
+    /// <summary>
+    /// Active provider per port as resolved at startup, e.g.
+    /// <c>{"database":"postgres","storage":"filesystem"}</c>. Reports which adapter answers, while
+    /// the fields above report whether it is reachable (docs/ARCHITECTURE-v2.md §3).
+    /// </summary>
+    public Dictionary<string, string> Providers { get; set; } = new(StringComparer.Ordinal);
+
+    public string Version { get; set; } = "2.2.0";
 }
 
 public sealed class QueueHealthDto

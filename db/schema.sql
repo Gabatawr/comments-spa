@@ -5,12 +5,16 @@
 --
 --  NOTE FOR REVIEWERS
 --  ------------------
---  The running application uses SQLite by default (EF Core provider
---  Microsoft.EntityFrameworkCore.Sqlite) because the assignment allows
---  SQLite/PostgreSQL/MS SQL. This file is the *designed* relational
---  schema in MySQL dialect so it can be diffed against the implementation
---  in MySQL Workbench. The SQLite variant created by the committed EF Core
---  migration is logically identical (see db/schema.md for the type map).
+--  The running application uses **PostgreSQL** (EF Core provider
+--  Npgsql.EntityFrameworkCore.PostgreSQL) — see docker-compose.yml, .env.example
+--  and the committed EF Core migrations under
+--  src/Backend/Comments.Infrastructure/Persistence/Migrations.
+--
+--  This file is the *designed* relational schema in MySQL dialect so it can be
+--  opened and diffed against the implementation in MySQL Workbench (the assignment
+--  asks for such a file). The live DDL is the committed EF Core migration; the type
+--  map between the two is in db/schema.md, and db/schema-postgres.sql renders the
+--  same schema in PostgreSQL dialect.
 --
 --  Every column of the EF entities is present here, with the same names
 --  (column name = EF property name in snake_case).

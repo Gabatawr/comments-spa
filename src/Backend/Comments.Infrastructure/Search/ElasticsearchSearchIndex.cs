@@ -42,7 +42,7 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
             _http.BaseAddress = new Uri(_options.Url.TrimEnd('/') + "/");
         }
 
-        _http.Timeout = TimeSpan.FromSeconds(10);
+        _http.Timeout = TimeSpan.FromSeconds(Math.Clamp(_options.TimeoutSeconds, 1, 300));
     }
 
     public bool IsEnabled => _options.Enabled;
@@ -307,8 +307,9 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
 }
 
 /// <summary>
-/// Search adapter used when <c>Search:Enabled=false</c>: every operation is a no-op and the API
-/// reports <c>health.search=disabled</c> / HTTP 503 for <c>/api/search</c>.
+/// Search adapter used when <c>Providers:Search=none</c> (legacy <c>Search:Enabled=false</c>):
+/// every operation is a no-op and the API reports <c>health.search=disabled</c> / HTTP 503 for
+/// <c>/api/search</c>.
 /// </summary>
 public sealed class NoopSearchIndex : ICommentSearchIndex
 {
