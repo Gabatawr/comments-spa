@@ -10,6 +10,7 @@ Docker resources) and `docs/API-v2.md` §7–§10.
 |---|---|
 | `compose.dev.yml` | Override enabling Development mode (dev seed endpoint + captcha peek) for the `tools`/`load` profiles. Use with `-f docker-compose.yml -f infra/compose.dev.yml`. |
 | `compose.s3.yml` | Override adding an S3-compatible server (`adobe/s3mock`) and pointing the API at it (`Providers__Storage=s3`), so the provider switch can be demonstrated end to end without an AWS account. The file header shows the MinIO swap for a real host. |
+| `hetzner/` | VDS deployment: `cloud-init.sh` (host prep), `comments-spa.service` (stack on boot) and `deploy.sh` (create/status/destroy the server). See `hetzner/README.md`. |
 | `postgres/init.sql` | Runs once on an empty data dir. Only tunes the cluster (UTC, `pg_trgm`). **Schema is owned by EF Core migrations.** |
 | `rabbitmq/definitions.json` | Reference/optional pre-provisioning of the API-v2 §7 topology (`comments.events`, `comments.dlx`, `*.dlq`, retry queue). **Not auto-loaded** — see below. |
 
