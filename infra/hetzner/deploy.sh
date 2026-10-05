@@ -25,6 +25,7 @@ IMAGE=ubuntu-24.04
 LOCATION=fsn1        # fsn1 | nbg1 | hel1 | ash | hil | sin
 REPO=""
 SSH_KEY="$HOME/.ssh/hetzner_comments"
+SSH_KEY_REF=""       # numeric id of the Hetzner SSH key the server is created with
 LABEL_MANAGER=comments-spa-deploy
 
 usage() {
@@ -91,10 +92,21 @@ ensure_ssh_key() {
     echo "  создаю ключ $SSH_KEY"
     ssh-keygen -t ed25519 -f "$SSH_KEY" -N '' -C "$NAME" >/dev/null
   fi
-  local found
-  found="$(api GET "/ssh_keys?name=$NAME" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("ssh_keys", [])))')"
-  if [ "$found" != "0" ]; then
-    echo "  ssh-ключ «$NAME» уже зарегистрирован"
+  # Hetzner rejects a public key that is already registered, so look the
+  # fingerprint up first and reuse whatever already carries it.
+  local fp reuse
+  fp="$(ssh-keygen -lf "$SSH_KEY.pub" -E md5 | awk '{print $2}' | sed 's/^MD5://')"
+  reuse="$(api GET '/ssh_keys' | FP="$fp" python3 -c '
+import json, os, sys
+fp = os.environ["FP"]
+for k in json.load(sys.stdin).get("ssh_keys", []):
+    if k.get("fingerprint") == fp:
+        print("%s\t%s" % (k["id"], k["name"]))
+        break
+')"
+  if [ -n "$reuse" ]; then
+    SSH_KEY_REF="$(printf '%s' "$reuse" | cut -f1)"
+    echo "  ssh-ключ уже в аккаунте: «$(printf '%s' "$reuse" | cut -f2)» (#$SSH_KEY_REF) — использую его"
     return
   fi
   local body
@@ -103,12 +115,14 @@ import json, os
 print(json.dumps({"name": os.environ["NAME"], "public_key": os.environ["PUB"]}))
 PY
 )"
-  api POST "/ssh_keys" "$body" | python3 -c '
+  SSH_KEY_REF="$(api POST "/ssh_keys" "$body" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
 if "error" in d: sys.exit("  ошибка API: %s" % d["error"].get("message"))
-print("  ssh-ключ «%s» зарегистрирован (#%s)" % (d["ssh_key"]["name"], d["ssh_key"]["id"]))
-'
+print(d["ssh_key"]["id"])
+')"
+  [ -n "$SSH_KEY_REF" ] || { echo '  не удалось зарегистрировать ssh-ключ' >&2; exit 1; }
+  echo "  ssh-ключ «$NAME» зарегистрирован (#$SSH_KEY_REF)"
 }
 
 do_create() {
@@ -128,7 +142,7 @@ do_create() {
   [ -n "$REPO" ] && echo "  репозиторий: $REPO" || echo '  репозиторий: не задан (клонируйте вручную)'
 
   body="$(NAME="$NAME" TYPE="$TYPE" IMAGE="$IMAGE" LOCATION="$LOCATION" REPO="$REPO" \
-          MANAGER="$LABEL_MANAGER" CI="$HERE/cloud-init.sh" python3 <<'PY'
+          MANAGER="$LABEL_MANAGER" KEYREF="$SSH_KEY_REF" CI="$HERE/cloud-init.sh" python3 <<'PY'
 import json, os, pathlib
 ci = pathlib.Path(os.environ["CI"]).read_text(encoding="utf-8")
 repo = os.environ["REPO"]
@@ -140,7 +154,7 @@ print(json.dumps({
     "image": os.environ["IMAGE"],
     "location": os.environ["LOCATION"],
     "start_after_create": True,
-    "ssh_keys": [os.environ["NAME"]],
+    "ssh_keys": [int(os.environ["KEYREF"])],
     "labels": {"project": os.environ["NAME"], "managed-by": os.environ["MANAGER"]},
     "user_data": ci,
 }))
