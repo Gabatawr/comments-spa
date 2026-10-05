@@ -3,7 +3,7 @@ using Comments.Application.Abstractions.Caching;
 namespace Comments.Infrastructure.Caching;
 
 /// <summary>
-/// Placeholder primary used when <c>Cache:Provider=redis</c> but the server cannot be reached:
+/// Placeholder primary used when <c>Providers:Cache=redis</c> but the server cannot be reached:
 /// every operation fails so <see cref="FallbackCacheService"/> degrades to memory while
 /// <see cref="IsAvailable"/> stays false, letting health report <c>cache=error</c>.
 /// </summary>

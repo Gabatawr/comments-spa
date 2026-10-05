@@ -8,13 +8,10 @@ TestResults/
 *.trx
 *.coverage
 
-# App data / storage
+# App data / storage — local attachment root, plus any stray DB file
 *.db
 *.db-shm
 *.db-wal
-comments.db*
-src/Backend/CommentsApi/storage/
-src/Backend/CommentsApi/wwwroot/
 src/Backend/Comments.Api/storage/
 src/Backend/Comments.Api/wwwroot/
 src/Backend/Comments.Api/data/

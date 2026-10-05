@@ -1,0 +1,81 @@
+# ===========================================================================
+# S3-compatible object storage profile — proves the provider switch end to end.
+#
+#   docker compose -f docker-compose.yml -f infra/compose.s3.yml up -d --build
+#   curl -s localhost:8081/api/info | grep -A6 '"storage"'
+#   # → "value": "s3", "status": "ok", "alternatives": ["filesystem","azureblob"]
+#
+# Upload a comment with an image and the bytes land in the bucket instead of the volume:
+#   docker exec comments-spa-s3 sh -c 'ls -R /s3mockroot'      # object in the bucket
+#   docker exec comments-spa-api sh -lc 'find /app/storage -type f | head'   # volume stays empty
+#
+# The API image is byte-identical to the default stack — only Providers__Storage and the four
+# Storage__S3__* variables change, which is exactly what you would set for AWS S3.
+#
+# ── Server choice ──────────────────────────────────────────────────────────
+# `adobe/s3mock` is used because it is tiny, needs no credentials and speaks plain S3 over HTTP,
+# so the switch can be demonstrated anywhere. On a real host MinIO is the natural stand-in and
+# works with this same file — only the server image changes (the bucket-init container already
+# uses `aws s3 mb`, which MinIO supports):
+#
+#   s3:
+#     image: minio/minio:latest
+#     command: server /data --console-address ":9001"
+#     environment: { MINIO_ROOT_USER: comments, MINIO_ROOT_PASSWORD: comments123 }
+#     ports: ["59000:9000", "59001:9001"]
+#     volumes: [comments-spa-s3-data:/data]
+#
+# The application itself is unchanged either way: AWS S3, MinIO, Yandex Object Storage,
+# Cloudflare R2 and DigitalOcean Spaces differ only by endpoint, region and path-style.
+# ===========================================================================
+
+services:
+  s3:
+    image: adobe/s3mock:latest
+    container_name: comments-spa-s3
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_REGION: us-east-1
+    ports:
+      - "${S3_HOST_PORT:-59000}:9090"
+    restart: unless-stopped
+    networks: [comments-spa-net]
+
+  # Creates the bucket once, then exits. `aws s3 mb` is idempotent enough for this (it only fails
+  # when the bucket already exists), and the retry loop absorbs the server's warm-up.
+  s3-init:
+    image: amazon/aws-cli:latest
+    container_name: comments-spa-s3-init
+    depends_on:
+      s3:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-comments}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-comments123}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        for i in $(seq 1 30); do
+          aws --endpoint-url http://s3:9090 s3 mb "s3://${S3_BUCKET:-comments-attachments}" >/dev/null 2>&1 && break;
+          sleep 2;
+        done;
+        aws --endpoint-url http://s3:9090 s3 ls "s3://${S3_BUCKET:-comments-attachments}" >/dev/null &&
+        echo "S3 bucket ${S3_BUCKET:-comments-attachments} is ready"
+    restart: "no"
+    networks: [comments-spa-net]
+
+  api:
+    depends_on:
+      s3-init:
+        condition: service_completed_successfully
+    environment:
+      Providers__Storage: s3
+      Storage__S3__ServiceUrl: http://s3:9090
+      Storage__S3__Bucket: ${S3_BUCKET:-comments-attachments}
+      Storage__S3__Prefix: ${S3_PREFIX:-}
+      Storage__S3__Region: ${S3_REGION:-us-east-1}
+      Storage__S3__ForcePathStyle: "true"
+      Storage__S3__UseHttp: "true"
+      Storage__S3__AccessKey: ${S3_ACCESS_KEY:-comments}
+      Storage__S3__SecretKey: ${S3_SECRET_KEY:-comments123}

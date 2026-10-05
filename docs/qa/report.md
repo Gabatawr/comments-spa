@@ -1,5 +1,8 @@
 # QA verification report — SPA «Комментарии»
 
+> **Исторический документ (этап 1: SQLite + SPA на ES-модулях).** Актуальный отчёт —
+> [`report-v2.1.md`](report-v2.1.md).
+
 - **Task**: task-5 (QA verification, adversarial pass, final report)
 - **Owner**: qa
 - **Verdict**: **PASS** for the scope verified here (backend API, security, attachments,

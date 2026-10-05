@@ -4,6 +4,7 @@ using Comments.Application.Abstractions;
 using Comments.Application.Abstractions.Caching;
 using Comments.Application.Abstractions.Messaging;
 using Comments.Application.Abstractions.Persistence;
+using Comments.Application.Abstractions.Providers;
 using Comments.Application.Abstractions.Search;
 using Comments.Application.Abstractions.Storage;
 using Comments.Application.Dtos;
@@ -37,6 +38,7 @@ public static class CommentsApiEndpoints
         // --- v2 endpoints (docs/API-v2.md §2.1, §3) ---------------------------------------
         app.MapGet("/api/health/live", Live);
         app.MapGet("/api/health/ready", ReadyAsync);
+        app.MapGet("/api/info", InfoAsync);
         app.MapGet("/api/search", SearchAsync);
         app.MapGet("/api/stats", StatsAsync);
         app.MapPost("/api/comments/{id:int}/child", CreateChildAsync);
@@ -63,7 +65,7 @@ public static class CommentsApiEndpoints
         ICommentSearchIndex searchIndex,
         IFileStorage storage,
         WebSocketHub hub,
-        IConfiguration configuration,
+        ActiveProviders providers,
         CancellationToken cancellationToken)
     {
         var database = "ok";
@@ -79,21 +81,9 @@ public static class CommentsApiEndpoints
             database = "error";
         }
 
-        var cacheStatus = cache.IsAvailable ? "ok" : "error";
-
-        var redisProvider = string.Equals(
-            configuration["Cache:Provider"], "redis", StringComparison.OrdinalIgnoreCase);
-        var redis = redisProvider ? (cache.IsAvailable ? "ok" : "error") : "disabled";
-
-        var rabbitProvider = string.Equals(
-            configuration["Messaging:Provider"], "rabbitmq", StringComparison.OrdinalIgnoreCase);
-        var broker = rabbitProvider ? (consumer.IsAvailable ? "ok" : "error") : "disabled";
-
-        var search = !searchIndex.IsEnabled ? "disabled" : (searchIndex.IsAvailable ? "ok" : "error");
-
-        var storageStatus = !string.Equals(storage.Provider, "filesystem", StringComparison.OrdinalIgnoreCase)
-            ? "disabled"
-            : (storage.IsAvailable ? "ok" : "error");
+        // Every status comes from the provider's own probe plus the switchboard — no provider name
+        // is spelled out here, so a new adapter shows up in health without touching this method.
+        var cacheStatus = Status(cache.IsAvailable);
 
         return Results.Ok(new HealthDto
         {
@@ -102,12 +92,77 @@ public static class CommentsApiEndpoints
             Cache = cacheStatus,
             Queue = new QueueHealthDto { Pending = consumer.Pending, Processed = consumer.Processed },
             Websocket = new WebSocketHealthDto { Clients = hub.ClientCount },
-            Redis = redis,
-            Broker = broker,
-            Search = search,
-            Storage = storageStatus,
+            Redis = providers.IsSelfContained(ProviderCatalog.Cache) ? "disabled" : cacheStatus,
+            Broker = providers.IsSelfContained(ProviderCatalog.Messaging) ? "disabled" : Status(consumer.IsAvailable),
+            Search = providers.IsSelfContained(ProviderCatalog.Search) ? "disabled" : Status(searchIndex.IsAvailable),
+            Storage = Status(storage.IsAvailable),
+            Providers = new Dictionary<string, string>(providers.Values, StringComparer.Ordinal),
             Version = ApiVersion(),
         });
+    }
+
+    /// <summary>
+    /// GET /api/info — the provider switchboard as resolved at startup plus live reachability.
+    /// Answers "what is this deployment running on, and what else could it run on" without
+    /// exec-ing into the container to read configuration (docs/ARCHITECTURE-v2.md §3).
+    /// </summary>
+    private static async Task<IResult> InfoAsync(
+        IDatabaseHealthCheck databaseHealth,
+        ICacheService cache,
+        IEventConsumer consumer,
+        ICommentSearchIndex searchIndex,
+        IFileStorage storage,
+        ActiveProviders providers,
+        CancellationToken cancellationToken)
+    {
+        var statuses = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [ProviderCatalog.Database] = await ProbeAsync(databaseHealth.CanConnectAsync, cancellationToken),
+            [ProviderCatalog.Cache] = Status(cache.IsAvailable),
+            [ProviderCatalog.Messaging] = Status(consumer.IsAvailable),
+            [ProviderCatalog.Search] = Status(searchIndex.IsAvailable),
+            [ProviderCatalog.Storage] = Status(storage.IsAvailable),
+        };
+
+        return Results.Ok(new InfoDto
+        {
+            Version = ApiVersion(),
+            Strict = providers.Strict,
+            FailFastOnUnavailable = providers.FailFastOnUnavailable,
+            Providers = ProviderCatalog.Ports.Select(port =>
+            {
+                var descriptor = ProviderCatalog.Find(port, providers[port]);
+                return new ProviderInfoDto
+                {
+                    Port = port,
+                    Value = providers[port],
+                    Status = providers.IsSelfContained(port) ? "disabled" : statuses[port],
+                    Implemented = descriptor?.Implemented ?? false,
+                    SelfContained = descriptor?.SelfContained ?? false,
+                    Description = descriptor?.Description ?? string.Empty,
+                    Alternatives = ProviderCatalog.For(port)
+                        .Where(p => p.Implemented
+                                    && !string.Equals(p.Value, providers[port], StringComparison.OrdinalIgnoreCase))
+                        .Select(p => p.Value)
+                        .ToList(),
+                };
+            }).ToList(),
+        });
+    }
+
+    /// <summary>"ok" | "error" — the vocabulary <c>/api/health</c> already uses.</summary>
+    private static string Status(bool available) => available ? "ok" : "error";
+
+    private static async Task<string> ProbeAsync(Func<CancellationToken, Task<bool>> probe, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Status(await probe(cancellationToken));
+        }
+        catch
+        {
+            return "error";
+        }
     }
 
     private static IResult Live() => Results.Ok(new { status = "ok" });
@@ -583,9 +638,10 @@ public static class CommentsApiEndpoints
         IFileStorage storage,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(storage.Provider, "filesystem", StringComparison.OrdinalIgnoreCase))
+        // Providers that keep bytes on disk hand out a path (sendfile + range requests); object
+        // stores answer false and we stream through the port instead (docs/API-v2.md §11).
+        if (attachmentService.TryGetLocalPath(attachment, out var fullPath))
         {
-            var fullPath = attachmentService.GetFullPath(attachment);
             return File.Exists(fullPath)
                 ? Results.File(fullPath, contentType, enableRangeProcessing: true)
                 : ApiErrors.NotFound($"Attachment {id} file is missing.");
@@ -624,7 +680,7 @@ public static class CommentsApiEndpoints
     {
         var assemblyVersion = typeof(Program).Assembly.GetName().Version;
         return assemblyVersion is null || assemblyVersion == new Version(0, 0, 0, 0)
-            ? "2.1.0"
+            ? "2.2.0"
             : assemblyVersion.ToString(3);
     }
 }

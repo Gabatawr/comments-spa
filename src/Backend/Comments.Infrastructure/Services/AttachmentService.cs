@@ -158,9 +158,8 @@ public sealed class AttachmentService : IAttachmentService
         return attachment;
     }
 
-    public string GetStorageRoot() => _storage.GetFullPath(string.Empty);
-
-    public string GetFullPath(Attachment attachment) => _storage.GetFullPath(attachment.StoragePath);
+    public bool TryGetLocalPath(Attachment attachment, out string fullPath) =>
+        _storage.TryGetLocalPath(attachment.StoragePath, out fullPath);
 
     private AttachmentValidation ValidateImage(byte[] bytes, string originalName, ImageFormat format)
     {

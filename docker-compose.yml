@@ -46,18 +46,47 @@ x-api-env: &api-env
     Host=postgres;Port=5432;Database=${POSTGRES_DB:-comments};Username=${POSTGRES_USER:-comments};Password=${POSTGRES_PASSWORD:-comments}
   # --- Redis (cache + captcha store) ---
   Redis__ConnectionString: ${REDIS_CONNECTION_STRING:-redis:6379}
-  Cache__Provider: ${CACHE_PROVIDER:-redis}
   # --- RabbitMQ (events) ---
   # Non-guest default user: `guest` is restricted to loopback and would be
   # rejected from other containers. Set RABBITMQ_* in .env to change.
   RabbitMq__ConnectionString: ${RABBITMQ_CONNECTION_STRING:-amqp://comments:comments@rabbitmq:5672/}
-  Messaging__Provider: ${MESSAGING_PROVIDER:-rabbitmq}
-  # --- Elasticsearch (search index) ---
+  # --- Elasticsearch / OpenSearch (search index) ---
+  # Managed clusters are authenticated: set SEARCH_USERNAME + SEARCH_PASSWORD or SEARCH_API_KEY.
   Elastic__Url: ${ELASTIC_URL:-http://elasticsearch:9200}
-  Search__Enabled: "${SEARCH_ENABLED:-true}"
-  # --- Storage (local filesystem; S3/Azure are documented seams only) ---
-  Storage__Provider: ${STORAGE_PROVIDER:-filesystem}
+  Search__Username: ${SEARCH_USERNAME:-}
+  Search__Password: ${SEARCH_PASSWORD:-}
+  Search__ApiKey: ${SEARCH_API_KEY:-}
+  # --- Provider switchboard (docs/ARCHITECTURE-v2.md §3) ---
+  # Which adapter answers for each port. GET /api/info lists the full matrix and what else
+  # this deployment could run on. Strict=true turns a typo into a startup error.
+  Providers__Database: ${PROVIDERS_DATABASE:-postgres}
+  Providers__Cache: ${PROVIDERS_CACHE:-redis}
+  Providers__Messaging: ${PROVIDERS_MESSAGING:-rabbitmq}
+  Providers__Search: ${PROVIDERS_SEARCH:-elastic}
+  Providers__Storage: ${PROVIDERS_STORAGE:-filesystem}
+  Providers__Strict: "${PROVIDERS_STRICT:-true}"
+  Providers__FailFastOnUnavailable: "${PROVIDERS_FAIL_FAST:-false}"
+  # --- Storage: filesystem (default) ---
   Storage__Root: /app/storage
+  # --- Storage: s3 (set PROVIDERS_STORAGE=s3) ---
+  # ServiceUrl empty = AWS; pointed at MinIO/Yandex/R2/Spaces otherwise. Credentials empty =
+  # the SDK default chain (env vars, profile, ECS task role, EC2 instance role).
+  Storage__S3__ServiceUrl: ${S3_SERVICE_URL:-}
+  Storage__S3__Bucket: ${S3_BUCKET:-}
+  Storage__S3__Prefix: ${S3_PREFIX:-}
+  Storage__S3__Region: ${S3_REGION:-us-east-1}
+  Storage__S3__ForcePathStyle: ${S3_FORCE_PATH_STYLE:-}
+  Storage__S3__UseHttp: ${S3_USE_HTTP:-}
+  Storage__S3__AccessKey: ${S3_ACCESS_KEY:-}
+  Storage__S3__SecretKey: ${S3_SECRET_KEY:-}
+  # --- Storage: azureblob (set PROVIDERS_STORAGE=azureblob) ---
+  # Either a connection string, or AccountUrl + SAS token, or AccountUrl alone for
+  # DefaultAzureCredential (managed identity — no secret in the environment).
+  Storage__AzureBlob__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-}
+  Storage__AzureBlob__AccountUrl: ${AZURE_BLOB_ACCOUNT_URL:-}
+  Storage__AzureBlob__SasToken: ${AZURE_BLOB_SAS_TOKEN:-}
+  Storage__AzureBlob__Container: ${AZURE_BLOB_CONTAINER:-}
+  Storage__AzureBlob__Prefix: ${AZURE_BLOB_PREFIX:-}
   # --- Proxy trust (nginx sets X-Forwarded-*) ---
   Proxy__TrustAll: "${PROXY_TRUST_ALL:-true}"
   # --- Feature flags: off by default (Production). infra/compose.dev.yml turns

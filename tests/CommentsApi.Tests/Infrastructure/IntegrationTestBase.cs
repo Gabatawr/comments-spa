@@ -12,7 +12,7 @@ namespace CommentsApi.Tests.Infrastructure;
 
 /// <summary>
 /// Base class for HTTP-level integration tests. Every test instance builds its own
-/// <see cref="TestAppFactory"/> (own temp SQLite DB + storage dir), so tests are isolated.
+/// <see cref="TestAppFactory"/> (own throwaway PostgreSQL database + storage dir), so tests are isolated.
 /// </summary>
 public abstract class IntegrationTestBase : IDisposable
 {

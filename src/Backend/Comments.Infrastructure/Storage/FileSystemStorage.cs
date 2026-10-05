@@ -7,7 +7,9 @@ using Microsoft.Extensions.Options;
 namespace Comments.Infrastructure.Storage;
 
 /// <summary>
-/// Local filesystem storage (docs/API-v2.md §11). Path traversal is blocked on every access.
+/// Local / shared-volume storage (docs/API-v2.md §11). Path traversal is blocked on every access.
+/// The only provider with a local fast path, so it is the only one that answers
+/// <see cref="TryGetLocalPath"/> with <c>true</c>.
 /// </summary>
 public sealed class FileSystemStorage : IFileStorage
 {
@@ -53,7 +55,7 @@ public sealed class FileSystemStorage : IFileStorage
     public async Task<string> SaveAsync(string storedName, Stream content, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(_root);
-        var fullPath = GetFullPath(storedName);
+        var fullPath = Resolve(storedName);
 
         await using var file = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
         await content.CopyToAsync(file, cancellationToken);
@@ -62,7 +64,7 @@ public sealed class FileSystemStorage : IFileStorage
 
     public Task<Stream?> OpenReadAsync(string storagePath, CancellationToken cancellationToken = default)
     {
-        var fullPath = GetFullPath(storagePath);
+        var fullPath = Resolve(storagePath);
         if (!File.Exists(fullPath))
         {
             return Task.FromResult<Stream?>(null);
@@ -76,7 +78,7 @@ public sealed class FileSystemStorage : IFileStorage
     {
         try
         {
-            var fullPath = GetFullPath(storagePath);
+            var fullPath = Resolve(storagePath);
             if (File.Exists(fullPath))
             {
                 File.Delete(fullPath);
@@ -91,9 +93,16 @@ public sealed class FileSystemStorage : IFileStorage
         return Task.FromResult(false);
     }
 
-    public bool Exists(string storagePath) => File.Exists(GetFullPath(storagePath));
+    public bool Exists(string storagePath) => File.Exists(Resolve(storagePath));
 
-    public string GetFullPath(string storagePath)
+    public bool TryGetLocalPath(string storagePath, out string fullPath)
+    {
+        fullPath = Resolve(storagePath);
+        return true;
+    }
+
+    /// <summary>Absolute path under the storage root; throws when it would escape the root.</summary>
+    private string Resolve(string storagePath)
     {
         var fullPath = Path.GetFullPath(Path.Combine(_root, storagePath ?? string.Empty));
 
@@ -106,55 +115,4 @@ public sealed class FileSystemStorage : IFileStorage
 
         return fullPath;
     }
-}
-
-/// <summary>
-/// S3 swap-in point (docs/API-v2.md §11). Deliberately not implemented locally; selecting this
-/// provider must fail loudly with a clear message instead of silently doing nothing.
-/// </summary>
-public sealed class S3FileStorage : IFileStorage
-{
-    public const string Message =
-        "Storage:Provider=s3 is a documented cloud swap-in point and is not implemented locally. " +
-        "Use Storage:Provider=filesystem for local/compose runs.";
-
-    public string Provider => "s3";
-
-    public bool IsAvailable => false;
-
-    private static NotSupportedException NotSupported() => new(Message);
-
-    public Task<string> SaveAsync(string storedName, Stream content, CancellationToken cancellationToken = default) => throw NotSupported();
-
-    public Task<Stream?> OpenReadAsync(string storagePath, CancellationToken cancellationToken = default) => throw NotSupported();
-
-    public Task<bool> DeleteAsync(string storagePath, CancellationToken cancellationToken = default) => throw NotSupported();
-
-    public bool Exists(string storagePath) => throw NotSupported();
-
-    public string GetFullPath(string storagePath) => throw NotSupported();
-}
-
-/// <summary>Azure Blob swap-in point (docs/API-v2.md §11). See <see cref="S3FileStorage"/>.</summary>
-public sealed class AzureBlobFileStorage : IFileStorage
-{
-    public const string Message =
-        "Storage:Provider=azureblob is a documented cloud swap-in point and is not implemented locally. " +
-        "Use Storage:Provider=filesystem for local/compose runs.";
-
-    public string Provider => "azureblob";
-
-    public bool IsAvailable => false;
-
-    private static NotSupportedException NotSupported() => new(Message);
-
-    public Task<string> SaveAsync(string storedName, Stream content, CancellationToken cancellationToken = default) => throw NotSupported();
-
-    public Task<Stream?> OpenReadAsync(string storagePath, CancellationToken cancellationToken = default) => throw NotSupported();
-
-    public Task<bool> DeleteAsync(string storagePath, CancellationToken cancellationToken = default) => throw NotSupported();
-
-    public bool Exists(string storagePath) => throw NotSupported();
-
-    public string GetFullPath(string storagePath) => throw NotSupported();
 }

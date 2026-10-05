@@ -1,5 +1,9 @@
 # Архитектура и разграничение зон
 
+> **Исторический документ (этап 1).** Описывает состояние до перехода на PostgreSQL — здесь SQLite,
+> SPA на ES-модулях и один контейнер. Действующая архитектура:
+> [`ARCHITECTURE-v2.md`](ARCHITECTURE-v2.md).
+
 ## Стек
 - **Backend**: .NET 10 (ASP.NET Core Minimal API + Controllers), EF Core 10, SQLite (по умолчанию).
 - **Frontend**: SPA без сборки (ES-модули, vanilla JS) — статика отдаётся backend-ом.

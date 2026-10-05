@@ -93,19 +93,50 @@ await app.Services.ApplyMigrationsAsync();
 await app.Services.EnsureSearchIndexAsync();
 ```
 
-## 5. Провайдеры и graceful degradation
+## 5. Провайдеры: переключатель, валидация, деградация
 
-Каждая внешняя зависимость включается конфигом и **не роняет** приложение при недоступности:
+Каждая внешняя зависимость — адаптер за портом. Какой адаптер работает, решает **один**
+переключатель, разобранный ровно один раз при старте (`ProviderResolver` → `ActiveProviders`)
+и общий для композиционного корня, баннера и `GET /api/info` — расходиться они не могут.
 
-| Настройка | Значения | Fallback |
+| Порт | Значения | По умолчанию |
 |---|---|---|
-| `Cache:Provider` | `redis` \| `memory` | если `redis` недоступен — лог + memory, `health.cache=error` |
-| `Messaging:Provider` | `rabbitmq` \| `inmemory` | если брокер недоступен — in-memory шина, `health.broker=error` |
-| `Search:Enabled` | `true` \| `false` | выключен → `/api/search` 503, `health.search=disabled` |
-| `Storage:Provider` | `filesystem` \| `s3` \| `azureblob` | не-local провайдеры не реализуются (только точка подмены + `NotSupportedException` с понятным текстом) |
+| `Providers:Database` | `postgres`, `mssql`\* | `postgres` |
+| `Providers:Cache` | `redis`, `memory` | `redis` |
+| `Providers:Messaging` | `rabbitmq`, `inmemory` | `rabbitmq` |
+| `Providers:Search` | `elastic`, `none` | `elastic` |
+| `Providers:Storage` | `filesystem`, `s3`, `azureblob` | `filesystem` |
 
-Это важно: **тесты по умолчанию** гоняются на `Cache:Provider=memory`,
-`Messaging:Provider=inmemory`, `Search:Enabled=false`, чтобы не требовать Redis/RabbitMQ/ES
+\* `mssql` объявлен как шов (ТЗ предпочитает MS SQL), но не реализован: выбор падает с точным
+сообщением, а не с «неизвестное значение». Все остальные значения реализованы настоящими
+адаптерами — включая S3-совместимое хранилище (AWS S3, MinIO, Yandex, R2, Spaces) и Azure Blob
+с managed identity.
+
+Две политики:
+
+| Настройка | По умолчанию | Смысл |
+|---|---|---|
+| `Providers:Strict` | `true` | неизвестное или нереализованное имя → ошибка старта со списком допустимых значений |
+| `Providers:FailFastOnUnavailable` | `false` | выбранный провайдер недоступен → ошибка старта; `false` — деградация с `health.<порт>=error` |
+
+Деградация по умолчанию как и раньше: недоступный Redis → memory-fallback и `cache=error`,
+недоступный брокер → in-memory шина и `broker=error`, недоступный ES → `search=error`.
+`FailFastOnUnavailable=true` переключает это на отказ старта — то, что нужно управляемому
+облаку: молчаливая деградация в проде хуже, чем контейнер, который не поднялся.
+
+**Совместимость.** Старые ключи (`Cache:Provider`, `Messaging:Provider`, `Storage:Provider`,
+`Search:Enabled`) работают как алиасы. Поэтому в `appsettings.json` секции `Providers`
+намеренно **нет**: значение в файле перекрыло бы алиас из окружения, и существующий деплой молча
+остался бы на файловом значении. Дефолты живут в `ProviderCatalog`.
+
+**Наблюдаемость.** Разрешённый набор пишется одной строкой в лог при старте, отдаётся в
+`GET /api/health` (блок `providers` — имена, рядом со статусами) и в `GET /api/info` (полная
+матрица: активное значение, статус, описание, альтернативы). Health больше **не знает имён**
+провайдеров: он спрашивает `IsAvailable` у самого адаптера, а `IsSelfContained` — у каталога,
+поэтому новый адаптер появляется в health без правки эндпоинта.
+
+Это важно: **тесты по умолчанию** гоняются на `Providers:Cache=memory`,
+`Messaging=inmemory`, `Search=none`, чтобы не требовать Redis/RabbitMQ/ES
 для юнитов. Интеграционный прогон против реальных сервисов — отдельный фильтр (см. §7).
 
 ## 6. Тесты: адаптация 251 теста под PostgreSQL
