@@ -8,4 +8,10 @@ public interface IAttachmentRepository
     Task<Attachment?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
     Task AddAsync(Attachment attachment, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks the metadata row for deletion. Used when an upload has to be undone because the
+    /// comment it belonged to was never created (see <c>IAttachmentService.DeleteAsync</c>).
+    /// </summary>
+    void Remove(Attachment attachment);
 }

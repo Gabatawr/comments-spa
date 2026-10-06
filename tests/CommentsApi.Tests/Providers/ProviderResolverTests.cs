@@ -62,30 +62,23 @@ public class ProviderResolverTests
     }
 
     [Fact]
-    public void Legacy_v2_aliases_are_still_honoured()
+    public void Retired_v2_keys_are_ignored()
     {
-        // The v2.0 stack and the existing test factory configure providers this way; migrating the
-        // keys must not silently repoint a running deployment.
+        // Cache:Provider / Messaging:Provider / Storage:Provider / Search:Enabled were honoured as
+        // aliases for compatibility with the previous iteration of this project. They are gone on
+        // purpose: one canonical key per port is the whole point of the switchboard, and a silent
+        // alias is a second way to configure the same decision. A deployment still setting them now
+        // gets the documented default instead of a surprise.
         var providers = ProviderResolver.Resolve(Config(
             ("Cache:Provider", "memory"),
             ("Messaging:Provider", "inmemory"),
             ("Storage:Provider", "s3"),
             ("Search:Enabled", "false")));
 
-        Assert.Equal("memory", providers.Cache);
-        Assert.Equal("inmemory", providers.Messaging);
-        Assert.Equal("s3", providers.Storage);
-        Assert.Equal("none", providers.Search);
-    }
-
-    [Fact]
-    public void Canonical_keys_win_over_legacy_aliases()
-    {
-        var providers = ProviderResolver.Resolve(Config(
-            ("Providers:Cache", "redis"),
-            ("Cache:Provider", "memory")));
-
         Assert.Equal("redis", providers.Cache);
+        Assert.Equal("rabbitmq", providers.Messaging);
+        Assert.Equal("filesystem", providers.Storage);
+        Assert.Equal("elastic", providers.Search);
     }
 
     [Fact]

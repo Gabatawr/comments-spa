@@ -85,36 +85,36 @@ public sealed class TestAppFactory : WebApplicationFactory<Program>
 
         if (UseExternalServices)
         {
-            settings["Cache:Provider"] = "redis";
-            settings["Cache__Provider"] = "redis";
+            settings["Providers:Cache"] = "redis";
+            settings["Providers__Cache"] = "redis";
             settings["Redis:ConnectionString"] = RedisConnectionString;
             settings["Redis__ConnectionString"] = RedisConnectionString;
-            settings["Search:Enabled"] = "true";
-            settings["Search__Enabled"] = "true";
+            settings["Providers:Search"] = "elastic";
+            settings["Providers__Search"] = "elastic";
             settings["Elastic:Url"] = ElasticUrl;
             settings["Elastic__Url"] = ElasticUrl;
 
             if (RabbitConnectionString is { } rabbit)
             {
-                settings["Messaging:Provider"] = "rabbitmq";
-                settings["Messaging__Provider"] = "rabbitmq";
+                settings["Providers:Messaging"] = "rabbitmq";
+                settings["Providers__Messaging"] = "rabbitmq";
                 settings["RabbitMq:ConnectionString"] = rabbit;
                 settings["RabbitMq__ConnectionString"] = rabbit;
             }
             else
             {
-                settings["Messaging:Provider"] = "inmemory";
-                settings["Messaging__Provider"] = "inmemory";
+                settings["Providers:Messaging"] = "inmemory";
+                settings["Providers__Messaging"] = "inmemory";
             }
         }
         else
         {
-            settings["Cache:Provider"] = "memory";
-            settings["Cache__Provider"] = "memory";
-            settings["Messaging:Provider"] = "inmemory";
-            settings["Messaging__Provider"] = "inmemory";
-            settings["Search:Enabled"] = "false";
-            settings["Search__Enabled"] = "false";
+            settings["Providers:Cache"] = "memory";
+            settings["Providers__Cache"] = "memory";
+            settings["Providers:Messaging"] = "inmemory";
+            settings["Providers__Messaging"] = "inmemory";
+            settings["Providers:Search"] = "none";
+            settings["Providers__Search"] = "none";
         }
 
         return settings;

@@ -1,6 +1,11 @@
 /**
- * comments.store.ts — состояние списка корневых комментариев: сортировка,
- * offset-пагинация 25, дерево ответов, live-вставка событий WebSocket.
+ * comments.store.ts — состояние списка корневых комментариев: сортировка, пагинация по 25,
+ * дерево ответов, live-вставка событий WebSocket.
+ *
+ * Пагинация гибридная (docs/API-v2.md §4.5): переходы на соседние страницы идут по keyset-курсору,
+ * а прыжок по номеру и возврат к первой странице — обычным OFFSET. На стотысячном наборе корней
+ * `OFFSET 100000` заставляет PostgreSQL пройти и отсортировать всё до окна; курсор продолжает
+ * выборку с последней строки предыдущей страницы, то есть по индексу.
  */
 
 import { Injectable, computed, inject, signal } from '@angular/core';
@@ -26,6 +31,18 @@ export class CommentsStore {
   readonly error = signal('');
   /** Комментарий, на который сейчас отвечают; null — обычный корневой комментарий. */
   readonly replyTarget = signal<CommentDto | null>(null);
+
+  /** Курсор текущей страницы; null — страница запрошена по OFFSET. */
+  readonly cursor = signal<string | null>(null);
+
+  /** Курсор начала следующей страницы, как его отдал сервер. */
+  readonly nextCursor = signal<string | null>(null);
+
+  /** Идёт ли текущая страница по курсору — состояние видно в разметке и в проверках. */
+  readonly usingCursor = computed(() => this.cursor() !== null);
+
+  /** Пройденные курсоры, чтобы «‹» возвращал ровно ту страницу, с которой пришли. */
+  private cursorHistory: (string | null)[] = [];
 
   readonly statusText = computed(() => {
     if (this.error()) {
@@ -58,6 +75,7 @@ export class CommentsStore {
           pageSize: this.pageSize,
           sortBy: this.sortBy(),
           sortDir: this.sortDir(),
+          cursor: this.cursor() ?? undefined,
         }),
       );
       if (seq !== this.requestSeq) {
@@ -90,17 +108,38 @@ export class CommentsStore {
       this.sortBy.set(field);
       this.sortDir.set(field === 'createdAt' ? 'desc' : 'asc');
     }
-    this.page.set(1);
+    this.resetPaging();
     return this.load();
   }
 
+  /**
+   * Навигация по страницам. Соседняя страница берётся по курсору, произвольный прыжок по номеру —
+   * по OFFSET; после прыжка последовательная навигация начинается заново (docs/API-v2.md §4.5).
+   */
   goToPage(page: number): Promise<void> {
     const target = Math.max(1, Number(page) || 1);
     if (target === this.page() && this.items().length) {
       return Promise.resolve();
     }
+
+    if (target === this.page() + 1 && this.nextCursor()) {
+      this.cursorHistory.push(this.cursor());
+      this.cursor.set(this.nextCursor());
+    } else if (target === this.page() - 1 && this.cursorHistory.length > 0) {
+      this.cursor.set(this.cursorHistory.pop() ?? null);
+    } else {
+      this.resetPaging();
+    }
+
     this.page.set(target);
     return this.load();
+  }
+
+  private resetPaging(): void {
+    this.cursorHistory = [];
+    this.cursor.set(null);
+    this.nextCursor.set(null);
+    this.page.set(1);
   }
 
   requestReply(comment: CommentDto): void {
@@ -184,6 +223,7 @@ export class CommentsStore {
     this.sortDir.set(data.sortDir ?? this.sortDir());
     this.totalItems.set(Number(data.totalItems) || 0);
     this.totalPages.set(Number(data.totalPages) || 0);
+    this.nextCursor.set(data.nextCursor ?? null);
     this.items.set(Array.isArray(data.items) ? data.items : []);
   }
 

@@ -10,8 +10,6 @@ public sealed class ElasticOptions
 {
     public const string SectionName = "Search";
 
-    public bool Enabled { get; set; } = true;
-
     public string Url { get; set; } = "http://elasticsearch:9200";
 
     public string IndexName { get; set; } = "comments";

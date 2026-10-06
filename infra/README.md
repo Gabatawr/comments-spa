@@ -12,7 +12,7 @@ Docker resources) and `docs/API-v2.md` §7–§10.
 | `compose.s3.yml` | Override adding an S3-compatible server (`adobe/s3mock`) and pointing the API at it (`Providers__Storage=s3`), so the provider switch can be demonstrated end to end without an AWS account. The file header shows the MinIO swap for a real host. |
 | `hetzner/` | VDS deployment: `cloud-init.sh` (host prep), `comments-spa.service` (stack on boot) and `deploy.sh` (create/status/destroy the server). See `hetzner/README.md`. |
 | `postgres/init.sql` | Runs once on an empty data dir. Only tunes the cluster (UTC, `pg_trgm`). **Schema is owned by EF Core migrations.** |
-| `rabbitmq/definitions.json` | Reference/optional pre-provisioning of the API-v2 §7 topology (`comments.events`, `comments.dlx`, `*.dlq`, retry queue). **Not auto-loaded** — see below. |
+| `rabbitmq/definitions.json` | Reference/optional pre-provisioning of the API-v2 §7 topology. Mirrors what the adapter declares: the two shared work queues, both DLQs, the retry queue and their bindings. **Not auto-loaded** — see below. |
 
 There are intentionally **no host-mounted config files** beyond `postgres/init.sql`.
 Files written in this workspace are mode 600 (uid 1000); a read-only mount of a
@@ -123,12 +123,18 @@ Auto-loading via `management.load_definitions` is intentionally disabled: if the
 pre-declared arguments ever diverge from the app's declaration the channel fails
 with `PRECONDITION_FAILED` and event flow breaks. One declaration owner is safer.
 
-The live adapter is the source of truth: it currently declares the §7 shared
-queues (`comments.events.search`, `comments.events.cache`, DLQs, retry) plus a
+The live adapter is the source of truth: it declares the §7 shared work queues
+(`comments.events.search`, `comments.events.cache`, their DLQs, the retry queue) plus a
 per-instance WebSocket fan-out queue (`comments.events.ws.<instanceId>`) so
 multiple API replicas do not steal each other's broadcasts, and probes queue
 arguments passively so an old container's declaration cannot raise AMQP 406.
-`definitions.json` is the §7 reference snapshot, not a live mirror.
+
+`definitions.json` is a snapshot of exactly that topology, minus the parts that are
+per-instance by nature: the WebSocket queue is exclusive and auto-deleted, so it is created by
+whichever replica is running, never pre-declared. Two things are worth keeping in step when the
+topology changes — the queue arguments and the five routing keys — because importing a snapshot
+that disagrees with the adapter leaves a durable queue with no consumer, quietly collecting a copy
+of every event.
 
 ## Credentials
 

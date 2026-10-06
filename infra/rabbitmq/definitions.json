@@ -6,36 +6,8 @@
   "topic_permissions": [],
   "parameters": [],
   "global_parameters": [],
-  "policies": [
-    {
-      "vhost": "/",
-      "name": "comments-dlx-retry",
-      "pattern": "^comments\\.events\\.",
-      "apply-to": "queues",
-      "definition": {
-        "dead-letter-exchange": "comments.dlx"
-      },
-      "priority": 1
-    }
-  ],
+  "policies": [],
   "queues": [
-    {
-      "name": "comments.events.ws",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {
-        "x-dead-letter-exchange": "comments.dlx",
-        "x-dead-letter-routing-key": "comments.events.ws.dlq"
-      }
-    },
-    {
-      "name": "comments.events.ws.dlq",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
     {
       "name": "comments.events.search",
       "vhost": "/",
@@ -43,7 +15,28 @@
       "auto_delete": false,
       "arguments": {
         "x-dead-letter-exchange": "comments.dlx",
-        "x-dead-letter-routing-key": "comments.events.search.dlq"
+        "x-dead-letter-routing-key": "comments.events.search.retry"
+      }
+    },
+    {
+      "name": "comments.events.cache",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "comments.dlx",
+        "x-dead-letter-routing-key": "comments.events.cache.retry"
+      }
+    },
+    {
+      "name": "comments.events.retry",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 5000,
+        "x-dead-letter-exchange": "comments.events",
+        "x-dead-letter-routing-key": "comment.created"
       }
     },
     {
@@ -54,31 +47,11 @@
       "arguments": {}
     },
     {
-      "name": "comments.events.cache",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {
-        "x-dead-letter-exchange": "comments.dlx",
-        "x-dead-letter-routing-key": "comments.events.cache.dlq"
-      }
-    },
-    {
       "name": "comments.events.cache.dlq",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
       "arguments": {}
-    },
-    {
-      "name": "comments.events.retry",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {
-        "x-message-ttl": 5000,
-        "x-dead-letter-exchange": "comments.events"
-      }
     }
   ],
   "exchanges": [
@@ -105,14 +78,6 @@
     {
       "source": "comments.events",
       "vhost": "/",
-      "destination": "comments.events.ws",
-      "destination_type": "queue",
-      "routing_key": "comment.created",
-      "arguments": {}
-    },
-    {
-      "source": "comments.events",
-      "vhost": "/",
       "destination": "comments.events.search",
       "destination_type": "queue",
       "routing_key": "comment.created",
@@ -129,9 +94,17 @@
     {
       "source": "comments.dlx",
       "vhost": "/",
-      "destination": "comments.events.ws.dlq",
+      "destination": "comments.events.retry",
       "destination_type": "queue",
-      "routing_key": "comments.events.ws.dlq",
+      "routing_key": "comments.events.search.retry",
+      "arguments": {}
+    },
+    {
+      "source": "comments.dlx",
+      "vhost": "/",
+      "destination": "comments.events.retry",
+      "destination_type": "queue",
+      "routing_key": "comments.events.cache.retry",
       "arguments": {}
     },
     {
@@ -139,7 +112,7 @@
       "vhost": "/",
       "destination": "comments.events.search.dlq",
       "destination_type": "queue",
-      "routing_key": "comments.events.search.dlq",
+      "routing_key": "comments.events.search.dead",
       "arguments": {}
     },
     {
@@ -147,23 +120,7 @@
       "vhost": "/",
       "destination": "comments.events.cache.dlq",
       "destination_type": "queue",
-      "routing_key": "comments.events.cache.dlq",
-      "arguments": {}
-    },
-    {
-      "source": "comments.dlx",
-      "vhost": "/",
-      "destination": "comments.events.retry",
-      "destination_type": "queue",
-      "routing_key": "comment.retry",
-      "arguments": {}
-    },
-    {
-      "source": "comments.events",
-      "vhost": "/",
-      "destination": "comments.events.retry",
-      "destination_type": "queue",
-      "routing_key": "comment.retry",
+      "routing_key": "comments.events.cache.dead",
       "arguments": {}
     }
   ]

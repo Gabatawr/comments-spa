@@ -38,15 +38,3 @@ public static class ApiErrors
             new ErrorResponse { Title = title, Status = StatusCodes.Status503ServiceUnavailable, Detail = detail },
             statusCode: StatusCodes.Status503ServiceUnavailable);
 }
-
-/// <summary>Cache key layout from docs/API-v2.md §9.</summary>
-public static class CommentCacheKeys
-{
-    /// <summary>Generation counter; bumped on every CommentCreated to invalidate all pages at once.</summary>
-    public const string Version = "comments:version";
-
-    public static string Page(string sortBy, string sortDir, int page, int pageSize, long version)
-        => $"comments:page:{sortBy}:{sortDir}:{page}:{pageSize}:v{version}";
-
-    public static string Item(int id) => $"comments:item:{id}";
-}

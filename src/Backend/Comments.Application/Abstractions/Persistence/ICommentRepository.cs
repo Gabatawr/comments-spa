@@ -22,7 +22,7 @@ public sealed record CommentCursor(string SortBy, string SortDir, string Value, 
 /// <summary>One page of roots plus whether the database holds another row after the window.</summary>
 public sealed record RootPageResult(IReadOnlyList<Comment> Items, bool HasMore);
 
-/// <summary>Aggregate counters for <c>GET /api/stats</c> (docs/API-v2.md §3.5).</summary>
+/// <summary>Aggregate counters for <c>GET /api/stats</c> and for list pagination (docs/API-v2.md §3.5).</summary>
 public sealed record CommentTotals(
     long TotalComments,
     long TotalRoots,
@@ -42,9 +42,6 @@ public sealed record SeedOutcome(long Created, long Roots, long ElapsedMs);
 /// </summary>
 public interface ICommentRepository
 {
-    /// <summary>Number of root comments (ParentId == null).</summary>
-    Task<int> CountRootsAsync(CancellationToken cancellationToken = default);
-
     /// <summary>
     /// One window of roots (with attachments), ordered exactly as requested, plus a
     /// <c>HasMore</c> flag computed by peeking one row past the window.

@@ -158,31 +158,57 @@ public sealed class CommentCreationFacade
         }
 
         int? attachmentId = null;
+        Attachment? storedAttachment = null;
         if (preparedAttachment is not null)
         {
-            var stored = await _attachmentService.PersistAsync(preparedAttachment, cancellationToken);
-            attachmentId = stored.Id;
+            storedAttachment = await _attachmentService.PersistAsync(preparedAttachment, cancellationToken);
+            attachmentId = storedAttachment.Id;
         }
 
-        var dto = await _createService.CreateAsync(
-            new CommentCreateModel
+        CommentDto dto;
+        try
+        {
+            dto = await _createService.CreateAsync(
+                new CommentCreateModel
+                {
+                    UserName = input.UserName ?? string.Empty,
+                    Email = input.Email ?? string.Empty,
+                    HomePage = homePage,
+                    TextHtml = html,
+                    TextPlain = plain,
+                    QuotedText = parent is null ? null : QuoteSnapshot.FromPlainText(parent.TextPlain),
+                    ParentId = input.ParentId,
+                    AttachmentId = attachmentId,
+                    ClientIp = input.ClientIp,
+                    UserAgent = input.UserAgent,
+                },
+                cancellationToken);
+        }
+        catch
+        {
+            // The bytes are already in storage and the metadata row is already committed, so a
+            // failure here would leave an attachment nothing can reach: no comment references it,
+            // and neither the filesystem nor an object store can tell it apart from a live one.
+            // Undo the upload before letting the error out (docs/ARCHITECTURE-v2.md §5).
+            if (storedAttachment is not null)
             {
-                UserName = input.UserName ?? string.Empty,
-                Email = input.Email ?? string.Empty,
-                HomePage = homePage,
-                TextHtml = html,
-                TextPlain = plain,
-                QuotedText = parent is null ? null : QuoteSnapshot.FromPlainText(parent.TextPlain),
-                ParentId = input.ParentId,
-                AttachmentId = attachmentId,
-                ClientIp = input.ClientIp,
-                UserAgent = input.UserAgent,
-            },
-            cancellationToken);
+                await _attachmentService.DeleteAsync(storedAttachment, CancellationToken.None);
+            }
 
-        // Local (synchronous) generation bump guarantees read-after-write consistency; the broker
-        // consumer bumps it again so the other API instances drop their own cached pages (§9).
-        await InvalidateCacheAsync(dto.Id, cancellationToken);
+            throw;
+        }
+
+        // Synchronous invalidation gives the instance that served this POST read-after-write
+        // consistency; the cache projection repeats it over the broker so the other replicas drop
+        // their own cached pages too (docs/API-v2.md §9). Same helper, so the two cannot drift.
+        var invalidationFailure = await CommentCacheInvalidation.AfterWriteAsync(_cache, cancellationToken);
+        if (invalidationFailure is not null)
+        {
+            _logger.LogDebug(
+                invalidationFailure,
+                "Cache invalidation failed after creating comment #{CommentId}",
+                dto.Id);
+        }
 
         try
         {
@@ -201,26 +227,5 @@ public sealed class CommentCreationFacade
         }
 
         return new CommentCreationResult { Comment = dto };
-    }
-
-    private async Task InvalidateCacheAsync(int commentId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _cache.IncrementAsync(CommentCacheKeys.Version, 1, ttl: null, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Cache version bump failed after creating comment #{CommentId}", commentId);
-        }
-
-        try
-        {
-            await _cache.RemoveAsync(CommentCacheKeys.Item(commentId), cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Cache item removal failed after creating comment #{CommentId}", commentId);
-        }
     }
 }

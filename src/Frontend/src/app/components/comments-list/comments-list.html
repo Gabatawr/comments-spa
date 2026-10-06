@@ -109,6 +109,7 @@
       [attr.data-page]="store.page()"
       [attr.data-page-size]="store.pageSize"
       [attr.data-total-pages]="store.totalPages()"
+      [attr.data-cursor-mode]="store.usingCursor() ? 'keyset' : 'offset'"
       aria-label="Постраничная навигация"
     >
       <button

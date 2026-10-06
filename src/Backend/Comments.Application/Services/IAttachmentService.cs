@@ -69,6 +69,14 @@ public interface IAttachmentService
     Task<Attachment> PersistAsync(PreparedAttachment prepared, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Undoes <see cref="PersistAsync"/>: removes the metadata row and the stored bytes. Needed
+    /// because the bytes are written before the comment that references them exists, so a failure
+    /// in between would otherwise leave an attachment nothing can ever reach.
+    /// Best effort by contract — it must not throw while another error is being surfaced.
+    /// </summary>
+    Task DeleteAsync(Attachment attachment, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Filesystem fast path for serving a stored attachment: <c>true</c> plus the absolute path
     /// when the provider keeps bytes on disk, <c>false</c> for object stores — the caller then
     /// streams through <see cref="Abstractions.Storage.IFileStorage.OpenReadAsync"/>.

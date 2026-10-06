@@ -5,16 +5,16 @@ namespace Comments.Infrastructure.Providers;
 
 /// <summary>
 /// Turns configuration into an <see cref="ActiveProviders"/> value (docs/ARCHITECTURE-v2.md §3).
-/// This is the only place that reads the provider keys, validates them, and applies the legacy
-/// aliases the v2.0 stack used. An invalid value fails startup with a message that lists what is
-/// allowed — a typo must never silently pick a different adapter.
+/// This is the only place that reads the provider keys and validates them. An invalid value fails
+/// startup with a message listing what is allowed — a typo must never silently pick a different
+/// adapter — and there is exactly one key per port to get right.
 ///
 /// <code>
-/// Providers:Database    (default postgres)      legacy: —
-/// Providers:Cache       (default redis)         legacy: Cache:Provider
-/// Providers:Messaging   (default rabbitmq)      legacy: Messaging:Provider
-/// Providers:Search      (default elastic)       legacy: Search:Enabled=false → none
-/// Providers:Storage     (default filesystem)    legacy: Storage:Provider
+/// Providers:Database              (default postgres)
+/// Providers:Cache                 (default redis)
+/// Providers:Messaging             (default rabbitmq)
+/// Providers:Search                (default elastic)
+/// Providers:Storage               (default filesystem)
 /// Providers:Strict                (default true)   unknown/unimplemented value = startup error
 /// Providers:FailFastOnUnavailable (default false)  selected-but-unreachable = startup error
 /// </code>
@@ -68,21 +68,15 @@ public static class ProviderResolver
         return new ActiveProviders(values, strict, failFast, warnings);
     }
 
-    private static string? Raw(IConfiguration configuration, string port) => port switch
-    {
-        ProviderCatalog.Database => configuration["Providers:Database"],
-        ProviderCatalog.Cache => configuration["Providers:Cache"] ?? configuration["Cache:Provider"],
-        ProviderCatalog.Messaging => configuration["Providers:Messaging"] ?? configuration["Messaging:Provider"],
-        ProviderCatalog.Search => configuration["Providers:Search"] ?? SearchFromLegacyFlag(configuration),
-        ProviderCatalog.Storage => configuration["Providers:Storage"] ?? configuration["Storage:Provider"],
-        _ => null,
-    };
-
-    /// <summary>v2.0 spelled the search switch as a boolean flag; keep honouring it.</summary>
-    private static string? SearchFromLegacyFlag(IConfiguration configuration) =>
-        configuration["Search:Enabled"] is { } enabled
-            ? (Flag(enabled, fallback: true) ? "elastic" : "none")
-            : null;
+    /// <summary>
+    /// The canonical key for a port. There used to be a second, legacy set of keys
+    /// (<c>Cache:Provider</c>, <c>Messaging:Provider</c>, <c>Storage:Provider</c>,
+    /// <c>Search:Enabled</c>) honoured as aliases for compatibility with the previous iteration of
+    /// this same project. It bought nothing for a single deliverable and cost a branch per port plus
+    /// a paragraph in four documents, so the canonical key is now the only one.
+    /// </summary>
+    private static string? Raw(IConfiguration configuration, string port)
+        => configuration[$"Providers:{ProviderCatalog.Title(port)}"];
 
     private static bool Flag(IConfiguration configuration, string key, bool fallback) =>
         string.IsNullOrWhiteSpace(configuration[key]) ? fallback : Flag(configuration[key]!, fallback);

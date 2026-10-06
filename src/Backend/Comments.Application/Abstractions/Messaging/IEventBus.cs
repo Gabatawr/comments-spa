@@ -77,11 +77,35 @@ public interface IEventConsumer
 }
 
 /// <summary>
+/// Names of the shared work queues (docs/API-v2.md §7.1). One queue per independent side effect, so
+/// each can be scaled, retried and dead-lettered on its own. The names live next to the port
+/// because two sides must agree on them: the bus, which declares and consumes the topology, and the
+/// projections, which subscribe to a specific queue.
+/// </summary>
+public static class EventQueues
+{
+    /// <summary>Elasticsearch indexing.</summary>
+    public const string Search = "comments.events.search";
+
+    /// <summary>Cache invalidation.</summary>
+    public const string Cache = "comments.events.cache";
+
+    public static IReadOnlyList<string> All { get; } = new[] { Search, Cache };
+}
+
+/// <summary>
 /// Work-queue variant of <see cref="IEventConsumer"/> (docs/API-v2.md §7.1): messages are shared
 /// between replicas, so a subscriber runs <b>once per cluster</b>. Used by idempotent projections
 /// such as Elasticsearch indexing and cache invalidation.
+///
+/// The queue is part of the subscription, not an implementation detail. Every work queue receives
+/// its own copy of an event, and the bus fans a delivery out to the subscribers of that queue only —
+/// so one handler registered on two queues would run twice per event. Naming the queue makes that
+/// impossible to do by accident.
 /// </summary>
 public interface IWorkEventConsumer
 {
-    IDisposable Subscribe(Func<DomainEventEnvelope, CancellationToken, Task> handler);
+    /// <param name="queue">One of <see cref="EventQueues"/>.</param>
+    /// <param name="handler">Invoked once per event delivered to <paramref name="queue"/>.</param>
+    IDisposable Subscribe(string queue, Func<DomainEventEnvelope, CancellationToken, Task> handler);
 }

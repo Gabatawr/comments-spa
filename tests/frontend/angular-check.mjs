@@ -246,6 +246,8 @@ try {
     const pageAttr = await pager.getAttribute('data-page');
     const sizeAttr = await pager.getAttribute('data-page-size');
     check('pagination advertises pageSize=25', String(sizeAttr) === '25', `data-page-size=${sizeAttr}`);
+    const modeAttr = await pager.getAttribute('data-cursor-mode');
+    check('first page is fetched by offset', modeAttr === 'offset', `data-cursor-mode=${modeAttr}`);
     const before = await rows.first().innerText().catch(() => '');
     const next = page.locator('[data-testid="page-next"]').first();
     if (await next.count() && !(await next.isDisabled())) {
@@ -253,7 +255,24 @@ try {
       await wait(1400);
       const after = await rows.first().innerText().catch(() => '');
       const pageAttr2 = await pager.getAttribute('data-page');
+      const modeAttr2 = await pager.getAttribute('data-cursor-mode');
       check('pagination navigates to next page', before !== after && String(pageAttr2) !== String(pageAttr), `page ${pageAttr} -> ${pageAttr2}; before="${before.slice(0, 50)}" after="${after.slice(0, 50)}"`);
+      // Deep pages are the reason the keyset cursor exists: OFFSET has to walk everything before the
+      // window, a cursor continues from the previous page's last row (docs/API-v2.md §4.5).
+      check('next page is fetched by keyset cursor', modeAttr2 === 'keyset', `data-cursor-mode=${modeAttr2}`);
+
+      const prev = page.locator('[data-testid="page-prev"]').first();
+      if (await prev.count() && !(await prev.isDisabled())) {
+        await prev.click();
+        await wait(1400);
+        const backPage = await pager.getAttribute('data-page');
+        const backMode = await pager.getAttribute('data-cursor-mode');
+        const backText = await rows.first().innerText().catch(() => '');
+        check('previous page returns to the page it came from', String(backPage) === String(pageAttr) && backText === before, `page ${pageAttr2} -> ${backPage}`);
+        check('returning to the first page falls back to offset', backMode === 'offset', `data-cursor-mode=${backMode}`);
+      } else {
+        skipCheck('pagination goes back', 'page-prev disabled');
+      }
     } else {
       skipCheck('pagination navigation', 'page-next disabled (only one page)');
     }

@@ -29,6 +29,11 @@ export interface ListCommentsParams {
   pageSize?: number;
   sortBy?: SortBy;
   sortDir?: SortDir;
+  /**
+   * Opaque keyset cursor (docs/API-v2.md §4.5). When present the server ignores `page` and seeks
+   * by index instead of scrolling an OFFSET, which is what makes deep pages cheap on a large table.
+   */
+  cursor?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -48,11 +53,16 @@ export class ApiService {
   }
 
   listComments(params: ListCommentsParams = {}): Observable<CommentPageDto> {
-    const query = new HttpParams()
+    let query = new HttpParams()
       .set('page', String(params.page ?? 1))
       .set('pageSize', String(params.pageSize ?? DEFAULT_PAGE_SIZE))
       .set('sortBy', params.sortBy ?? DEFAULT_SORT_BY)
       .set('sortDir', params.sortDir ?? DEFAULT_SORT_DIR);
+
+    if (params.cursor) {
+      query = query.set('cursor', params.cursor);
+    }
+
     return this.http
       .get<CommentPageDto>('/api/comments', { params: query })
       .pipe(catchError((error: unknown) => this.fail(error)));

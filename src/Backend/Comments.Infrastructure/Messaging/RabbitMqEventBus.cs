@@ -26,11 +26,8 @@ namespace Comments.Infrastructure.Messaging;
 /// </summary>
 public sealed class RabbitMqEventBus : BackgroundService, IEventPublisher, IEventConsumer, IWorkEventConsumer
 {
-    private static readonly string[] WorkQueues =
-    {
-        "comments.events.search",
-        "comments.events.cache",
-    };
+    /// <summary>Shared work queues, one per side effect — see <see cref="EventQueues"/>.</summary>
+    private static readonly IReadOnlyList<string> WorkQueues = EventQueues.All;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -40,7 +37,11 @@ public sealed class RabbitMqEventBus : BackgroundService, IEventPublisher, IEven
     private readonly string _wsQueue = $"comments.events.ws.{Guid.NewGuid():N}";
 
     private readonly ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>> _broadcastSubscribers = new();
-    private readonly ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>> _workSubscribers = new();
+    /// <summary>
+    /// Work subscribers, grouped by queue. Each work queue gets its own copy of an event, so a
+    /// handler must only see deliveries from the queue it subscribed to.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>>> _workSubscribers = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, DateTime> _seen = new();
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -68,11 +69,27 @@ public sealed class RabbitMqEventBus : BackgroundService, IEventPublisher, IEven
         return new Subscription(() => _broadcastSubscribers.TryRemove(key, out _));
     }
 
-    IDisposable IWorkEventConsumer.Subscribe(Func<DomainEventEnvelope, CancellationToken, Task> handler)
+    /// <summary>
+    /// Subscribes to one work queue. The queue is part of the subscription: every work queue holds
+    /// its own copy of an event, so a handler must only see the queue it asked for.
+    /// </summary>
+    public IDisposable Subscribe(string queue, Func<DomainEventEnvelope, CancellationToken, Task> handler)
     {
+        if (!EventQueues.All.Contains(queue, StringComparer.Ordinal))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(queue),
+                queue,
+                $"Unknown work queue. Known queues: {string.Join(", ", EventQueues.All)}.");
+        }
+
+        var subscribers = _workSubscribers.GetOrAdd(
+            queue,
+            _ => new ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>>());
+
         var key = Guid.NewGuid();
-        _workSubscribers[key] = handler;
-        return new Subscription(() => _workSubscribers.TryRemove(key, out _));
+        subscribers[key] = handler;
+        return new Subscription(() => subscribers.TryRemove(key, out _));
     }
 
     public async Task PublishAsync(DomainEventEnvelope envelope, CancellationToken cancellationToken = default)
@@ -319,9 +336,14 @@ public sealed class RabbitMqEventBus : BackgroundService, IEventPublisher, IEven
                 return;
             }
 
-            foreach (var subscriber in _workSubscribers.Values)
+            // Only this queue's subscribers: the other work queues receive their own copy of the
+            // same event and are served by their own channels (docs/API-v2.md §7.1).
+            if (_workSubscribers.TryGetValue(queue, out var subscribers))
             {
-                await subscriber(envelope, cancellationToken);
+                foreach (var subscriber in subscribers.Values)
+                {
+                    await subscriber(envelope, cancellationToken);
+                }
             }
 
             Interlocked.Decrement(ref _pending);

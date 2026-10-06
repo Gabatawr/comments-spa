@@ -45,17 +45,18 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
         _http.Timeout = TimeSpan.FromSeconds(Math.Clamp(_options.TimeoutSeconds, 1, 300));
     }
 
-    public bool IsEnabled => _options.Enabled;
+    /// <summary>
+    /// Always true. This adapter is constructed only when <c>Providers:Search=elastic</c>, and
+    /// "search is off" is a different adapter (<see cref="NoopSearchIndex"/>) rather than a flag
+    /// inside this one — a flag here would be a second switch for a decision the container has
+    /// already made, and one that can disagree with what <c>/api/info</c> reports.
+    /// </summary>
+    public bool IsEnabled => true;
 
     public bool IsAvailable
     {
         get
         {
-            if (!_options.Enabled)
-            {
-                return false;
-            }
-
             lock (_probeLock)
             {
                 if (DateTime.UtcNow - _lastProbeAt < TimeSpan.FromSeconds(5))
@@ -81,11 +82,6 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
 
     public async Task EnsureIndexAsync(CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled)
-        {
-            return;
-        }
-
         try
         {
             var mapping = BuildMappingJson();
@@ -115,11 +111,6 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
 
     public async Task IndexAsync(CommentDto comment, CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled)
-        {
-            return;
-        }
-
         var document = new JsonObject
         {
             ["id"] = comment.Id,
@@ -143,15 +134,16 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
 
     public async Task<SearchResult> SearchAsync(SearchQuery query, CancellationToken cancellationToken = default)
     {
-        if (!_options.Enabled)
-        {
-            return new SearchResult(Array.Empty<SearchHit>(), query.Query, 0, query.Page, query.PageSize, 0, 0);
-        }
-
         var request = new JsonObject
         {
             ["from"] = query.From,
             ["size"] = query.PageSize,
+
+            // Without this, Elasticsearch 7.x/8.x caps hits.total.value at 10 000, so totalItems and
+            // totalPages would stop counting past ten thousand documents — silently, and only once
+            // the index is actually big enough to matter (docs/API-v2.md §3.1).
+            ["track_total_hits"] = true,
+
             ["query"] = new JsonObject
             {
                 ["multi_match"] = new JsonObject
@@ -307,9 +299,8 @@ public sealed class ElasticsearchSearchIndex : ICommentSearchIndex
 }
 
 /// <summary>
-/// Search adapter used when <c>Providers:Search=none</c> (legacy <c>Search:Enabled=false</c>):
-/// every operation is a no-op and the API reports <c>health.search=disabled</c> / HTTP 503 for
-/// <c>/api/search</c>.
+/// Search adapter used when <c>Providers:Search=none</c>: every operation is a no-op and the API
+/// reports <c>health.search=disabled</c> / HTTP 503 for <c>/api/search</c>.
 /// </summary>
 public sealed class NoopSearchIndex : ICommentSearchIndex
 {

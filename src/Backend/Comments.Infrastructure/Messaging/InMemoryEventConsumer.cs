@@ -83,6 +83,11 @@ public sealed class InMemoryEventBus : IEventBus
 /// In-memory fallback for the broker (docs/ARCHITECTURE-v2.md §5): <see cref="IEventPublisher"/>
 /// enqueues, a background pump dispatches to <see cref="IEventConsumer"/> subscribers and keeps
 /// the health counters real (pending = queued, processed = dispatched).
+///
+/// It also emulates the broker's fan-out rule: a work-queue subscriber is invoked once per queue it
+/// is subscribed to, because with a real broker each work queue would hold its own copy of the
+/// event. Skipping that would make the fallback behave differently from RabbitMQ — exactly the kind
+/// of difference that only shows up in production (docs/API-v2.md §7.1).
 /// </summary>
 public sealed class InMemoryEventConsumer : BackgroundService, IEventConsumer, IEventPublisher, IWorkEventConsumer
 {
@@ -94,6 +99,9 @@ public sealed class InMemoryEventConsumer : BackgroundService, IEventConsumer, I
         });
 
     private readonly ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>> _subscribers = new();
+
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>>> _workSubscribers = new(StringComparer.Ordinal);
+
     private readonly ILogger<InMemoryEventConsumer> _logger;
     private int _pending;
     private int _processed;
@@ -121,6 +129,29 @@ public sealed class InMemoryEventConsumer : BackgroundService, IEventConsumer, I
         return new Subscription(() => _subscribers.TryRemove(key, out _));
     }
 
+    /// <summary>
+    /// Subscribes to one work queue. The queue is part of the subscription: every work queue holds
+    /// its own copy of an event, so a handler must only see the queue it asked for.
+    /// </summary>
+    public IDisposable Subscribe(string queue, Func<DomainEventEnvelope, CancellationToken, Task> handler)
+    {
+        if (!EventQueues.All.Contains(queue, StringComparer.Ordinal))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(queue),
+                queue,
+                $"Unknown work queue. Known queues: {string.Join(", ", EventQueues.All)}.");
+        }
+
+        var subscribers = _workSubscribers.GetOrAdd(
+            queue,
+            _ => new ConcurrentDictionary<Guid, Func<DomainEventEnvelope, CancellationToken, Task>>());
+
+        var key = Guid.NewGuid();
+        subscribers[key] = handler;
+        return new Subscription(() => subscribers.TryRemove(key, out _));
+    }
+
     public Task PublishAsync(DomainEventEnvelope envelope, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _pending);
@@ -140,22 +171,46 @@ public sealed class InMemoryEventConsumer : BackgroundService, IEventConsumer, I
         {
             foreach (var subscriber in _subscribers.Values)
             {
-                try
+                await DispatchAsync(subscriber, envelope, stoppingToken);
+            }
+
+            // One delivery per work queue, mirroring the broker's copy-per-queue semantics.
+            foreach (var queue in EventQueues.All)
+            {
+                if (!_workSubscribers.TryGetValue(queue, out var subscribers))
                 {
-                    await subscriber(envelope, stoppingToken);
+                    continue;
                 }
-                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+
+                foreach (var subscriber in subscribers.Values)
                 {
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "In-memory subscriber failed for {EventType}", envelope.EventType);
+                    await DispatchAsync(subscriber, envelope, stoppingToken);
                 }
             }
 
             Interlocked.Decrement(ref _pending);
             Interlocked.Increment(ref _processed);
+        }
+    }
+
+    private async Task DispatchAsync(
+        Func<DomainEventEnvelope, CancellationToken, Task> subscriber,
+        DomainEventEnvelope envelope,
+        CancellationToken stoppingToken)
+    {
+        try
+        {
+            await subscriber(envelope, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // A failing projection must not stop the pump: the broker would retry, the fallback
+            // just logs (docs/ARCHITECTURE-v2.md §5).
+            _logger.LogError(ex, "In-memory subscriber failed for {EventType}", envelope.EventType);
         }
     }
 

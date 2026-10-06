@@ -210,19 +210,22 @@ public static class DependencyInjection
             services.AddSingleton<ICommentSearchIndex, NoopSearchIndex>();
         }
 
-        // Adapter-side effects: cache generation bump + async ES indexing (docs/API-v2.md §7.3, §9).
-        services.AddHostedService<CommentCreatedProjection>();
+        // Adapter-side effects of CommentCreated, one work queue each (docs/API-v2.md §7.1, §7.3, §9):
+        // the queue a projection subscribes to decides which copies of an event it sees, so cache
+        // invalidation and search indexing are delivered exactly once per event, not once per queue.
+        services.AddHostedService<CacheInvalidationProjection>();
+        services.AddHostedService<SearchIndexProjection>();
 
         return services;
     }
 
     /// <summary>
-    /// Reads the search settings. <paramref name="providers"/> also feeds <c>Enabled</c>, so the
-    /// legacy <c>Search:Enabled=false</c> flag and <c>Providers:Search=none</c> agree.
+    /// Reads the search settings. Whether search is on at all is decided by the provider selection
+    /// (<c>Providers:Search</c>), not by a flag here: <c>none</c> wires <see cref="NoopSearchIndex"/>
+    /// and the rest of these settings then never apply.
     /// </summary>
     private static ElasticOptions BuildElasticOptions(IConfiguration configuration, ActiveProviders providers) => new()
     {
-        Enabled = providers.Search == "elastic",
         Url = Str(configuration, "Search:Url") ?? Str(configuration, "Elastic:Url") ?? "http://elasticsearch:9200",
         IndexName = Str(configuration, "Search:IndexName") ?? "comments",
         Username = Str(configuration, "Search:Username") ?? Str(configuration, "Elastic:Username"),

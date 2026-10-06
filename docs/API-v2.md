@@ -259,7 +259,9 @@ filename="..."`, `X-Content-Type-Options: nosniff`. Для TXT `/thumb` → 404.
 
 ### 2.8 `GET /api/dev/captcha/{captchaId}` — только Development
 `{ "captchaId": "...", "code": "AB12CD" }`. Требует `ASPNETCORE_ENVIRONMENT=Development`
-**и** `Features:DevCaptchaPeek=true`. В Production → 404.
+**и** `Features:DevCaptchaPeek=true`. В Production → 404. Кроме того, весь путь `/api/dev/` закрыт
+на периметре: nginx отдаёт по нему 404 независимо от окружения (`src/Frontend/nginx.conf`), а порт
+API слушает `127.0.0.1`.
 
 ### 2.9 `WS /ws`
 При подключении:
@@ -288,7 +290,7 @@ filename="..."`, `X-Content-Type-Options: nosniff`. Для TXT `/thumb` → 404.
 | `sort` | enum | `relevance` | `relevance` \| `createdAt` |
 | `sortDir` | enum | `desc` | `asc` \| `desc` |
 
-Ответ 200 — `SearchPageDto` (§1). Если Elasticsearch выключен (`Search:Enabled=false`) →
+Ответ 200 — `SearchPageDto` (§1). Если поиск выключен (`Providers:Search=none`) →
 503 `{ "title":"Search unavailable", "status":503 }`. Если индекс пуст → пустой `items`.
 Индексация — асинхронно по событию `CommentCreated` (не блокирует запись).
 
@@ -349,6 +351,12 @@ Request `application/json`:
    - предикат: `(v, id) > (cursor.v, cursor.id)` для `asc`, `<` для `desc`;
    - несовпадение `sortBy/sortDir` с курсором → 400 `{"detail":"Cursor does not match sort."}`;
    - `nextCursor` есть тогда и только тогда, когда в БД есть ещё страница.
+   **Кто этим пользуется:** SPA берёт курсором переходы на соседние страницы («‹ ›»), а прыжок по
+   номеру страницы и возврат к первой — обычным `page`. Причина простая: `OFFSET 100000` заставляет
+   PostgreSQL пройти и отсортировать всё до окна, тогда как курсор продолжает с последней строки
+   предыдущей страницы, то есть по индексу (`perf/report.md` §5.1). Номер страницы в ответе и
+   `totalItems`/`totalPages` при этом остаются корректными, поэтому нумерованный пагинатор работает
+   как раньше.
 6. **Дерево ответов:** потомки любого узла сортируются `createdAt ASC, id ASC`, глубина не
    ограничена; сборка — level-by-level (BFS) одним запросом на уровень.
 7. `pageSize > 100` → зажимается до 100. `pageSize < 1` → 25. `page < 1` → 1.
@@ -508,9 +516,10 @@ type SearchHit {
   | `comments.events.search` | durable, shared | `comment.created` | индексация в Elasticsearch (ровно один раз) | `comments.events.search.dlq` |
   | `comments.events.cache` | durable, shared | `comment.created` | инвалидация кэша страниц (идемпотентно) | `comments.events.cache.dlq` |
 
-  Для обратной совместимости и однoинстансного запуска допускается durable-очередь
-  `comments.events.ws`; при `Messaging:ReplicaCount>1` (или всегда в Redis/ES-режиме) адаптер
-  обязан использовать пер-инстансную очередь.
+  Каждое событие попадает в **каждую** привязанную очередь, то есть в обеих work-очередях лежит
+  своя копия. Поэтому очередь — часть подписки (`IWorkEventConsumer.Subscribe(queue, handler)`):
+  доставка уходит только подписчикам этой очереди, и один обработчик не может по ошибке
+  отработать дважды на одно событие.
 - Retry: `x-dead-letter-exchange=comments.dlx` + TTL-очередь `comments.events.retry` (5 s), после
   3 доставок — в `*.dlq`. Публикация — publisher confirms; HTTP-ответ **не ждёт** обработки.
 
@@ -526,7 +535,7 @@ type SearchHit {
 }
 ```
 - `contentType: application/json`, `deliveryMode: 2` (persistent), `messageId = eventId`.
-- Внутренняя шина (`IEventBus`) сохраняется как fallback-режим (`Messaging:Provider=inmemory`)
+- Внутренняя шина (`IEventBus`) сохраняется как fallback-режим (`Providers:Messaging=inmemory`)
   — используется тестами без брокера и локальным запуском без RabbitMQ.
 
 ### 7.3 Доменные события
@@ -615,12 +624,18 @@ type SearchHit {
 | Ключ | TTL | Инвалидация |
 |---|---|---|
 | `comments:page:{sortBy}:{sortDir}:{page}:{pageSize}:v{N}` | 30 s | bump `comments:version` |
-| `comments:version` | ∞ | `INCR` по событию `CommentCreated` |
-| `comments:item:{id}` | 30 s | `DEL` по событию |
+| `comments:version` | ∞ | `INCR` на каждую запись |
 | `captcha:{captchaId}` | 300 s | one-time `GETDEL` при проверке |
-| `stats:totals` | 60 s | bump по событию |
+| `stats:totals` | 60 s | `DEL` на каждую запись |
 
-- Реализация за портом `ICacheService`; `Cache:Provider=redis|memory`.
+- Кэша отдельного комментария нет **намеренно**: чтение по id отдаёт всё поддерево ответов, поэтому
+  новый ответ в любой его точке обесценивает запись у предка, и держать её корректной значило бы
+  обходить цепочку родителей на каждой записи. Generation-версия выше решает ровно эту задачу.
+- `stats:totals` читают оба потребителя — `GET /api/stats` и пагинация списка: `COUNT(*)` по корням
+  выполняется один раз на эпоху записи, а не на каждый промах страницы (perf/report.md §5.1).
+- Свежесть даёт инвалидация, а не TTL: ключи сбрасываются на каждой записи, TTL — только страховка
+  для писателей мимо пайплайна (bulk `COPY` через `POST /api/dev/seed`).
+- Реализация за портом `ICacheService`; `Providers:Cache=redis|memory`.
 - Generation-версия — в Redis, чтобы инвалидация работала между инстансами API.
 - Если Redis недоступен — health `cache=error`, приложение продолжает работать на memory-fallback
   (graceful degradation, не 500).
@@ -644,9 +659,10 @@ type SearchHit {
 \* `mssql` объявлен как шов (ТЗ предпочитает MS SQL) и не реализован: выбор падает с точным
 сообщением. Активный набор виден в `GET /api/health` (`providers`) и `GET /api/info` (§2.1.1).
 
-Старые ключи `Cache__Provider`, `Messaging__Provider`, `Storage__Provider`, `Search__Enabled`
-продолжают работать как алиасы (используются тестовой фабрикой). Канонический ключ выигрывает,
-если заданы оба.
+Канонические ключи — `Providers__*` (таблица выше), по одному на порт. Прежние
+`Cache__Provider`, `Messaging__Provider`, `Storage__Provider`, `Search__Enabled` больше не
+читаются: это была совместимость с предыдущей итерацией того же проекта, и она давала второй способ
+задать то же решение.
 
 ### 10.2 Подключения и адаптеры
 

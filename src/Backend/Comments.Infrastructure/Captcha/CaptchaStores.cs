@@ -16,7 +16,8 @@ public sealed class MemoryCaptchaStore : ICaptchaStore
 
     public bool IsAvailable => true;
 
-    internal static string Key(string captchaId) => $"captcha:{captchaId}";
+    /// <summary>Shared with the Redis store so both tiers address the same key (see CacheKeys).</summary>
+    internal static string Key(string captchaId) => CacheKeys.Captcha(captchaId);
 
     public void Set(string captchaId, string code, TimeSpan ttl)
         => _cache.Set(Key(captchaId), code, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl });

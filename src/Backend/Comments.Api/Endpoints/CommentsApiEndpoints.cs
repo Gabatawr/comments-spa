@@ -230,7 +230,7 @@ public static class CommentsApiEndpoints
         if (string.IsNullOrWhiteSpace(cursor))
         {
             var version = await TryGetVersionAsync(cache, loggerFactory, cancellationToken);
-            var key = CommentCacheKeys.Page(normalizedSortBy, normalizedSortDir, currentPage, size, version);
+            var key = CacheKeys.Page(normalizedSortBy, normalizedSortDir, currentPage, size, version);
 
             CommentPageDto? cached = null;
             try
@@ -281,7 +281,7 @@ public static class CommentsApiEndpoints
     {
         try
         {
-            return await cache.GetAsync<long?>(CommentCacheKeys.Version, cancellationToken) ?? 0L;
+            return await cache.GetAsync<long?>(CacheKeys.Version, cancellationToken) ?? 0L;
         }
         catch (Exception ex)
         {
@@ -503,11 +503,11 @@ public static class CommentsApiEndpoints
     // ------------------------------------------------------------------ stats (§3.5)
 
     private static async Task<IResult> StatsAsync(
-        ICommentRepository repository,
+        CommentTotalsProvider totalsProvider,
         ICacheTelemetry cacheTelemetry,
         CancellationToken cancellationToken)
     {
-        var totals = await repository.GetTotalsAsync(cancellationToken);
+        var totals = await totalsProvider.GetAsync(cancellationToken);
         return Results.Ok(new StatsDto
         {
             TotalComments = totals.TotalComments,
@@ -560,14 +560,12 @@ public static class CommentsApiEndpoints
             new SeedOptions(options.Count, options.Roots, options.Depth, options.BatchSize, options.Clear),
             cancellationToken);
 
-        // A clear/seed changes every page: drop the generation and let caches refill.
-        try
+        // A clear/seed changes every page and every counter: drop both and let caches refill.
+        var invalidationFailure = await CommentCacheInvalidation.AfterWriteAsync(cache, cancellationToken);
+        if (invalidationFailure is not null)
         {
-            await cache.IncrementAsync(CommentCacheKeys.Version, 1, ttl: null, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            loggerFactory.CreateLogger("CommentsApi.Cache").LogDebug(ex, "Cache version bump failed after seed");
+            loggerFactory.CreateLogger("CommentsApi.Cache")
+                .LogDebug(invalidationFailure, "Cache invalidation failed after seed");
         }
 
         var perSecond = outcome.ElapsedMs > 0

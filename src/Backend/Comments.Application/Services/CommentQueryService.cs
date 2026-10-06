@@ -40,10 +40,12 @@ public interface ICommentQueryService
 public sealed class CommentQueryService : ICommentQueryService
 {
     private readonly ICommentRepository _repo;
+    private readonly CommentTotalsProvider _totals;
 
-    public CommentQueryService(ICommentRepository repo)
+    public CommentQueryService(ICommentRepository repo, CommentTotalsProvider totals)
     {
         _repo = repo;
+        _totals = totals;
     }
 
     public Task<CommentPageDto> GetRootPageAsync(
@@ -77,7 +79,10 @@ public sealed class CommentQueryService : ICommentQueryService
             }
         }
 
-        var totalItems = await _repo.CountRootsAsync(cancellationToken);
+        // The root count comes from the shared cached totals: on a large table this COUNT is the
+        // most expensive read behind a page miss (see CommentTotalsProvider).
+        var totals = await _totals.GetAsync(cancellationToken);
+        var totalItems = (int)Math.Min(int.MaxValue, totals.TotalRoots);
         var totalPages = CommentSortOptions.TotalPages(totalItems, pageSize);
 
         // 64-bit offset math: page can be int.MaxValue, and (page - 1) * pageSize overflows int32

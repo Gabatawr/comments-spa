@@ -19,9 +19,6 @@ public sealed class CommentRepository : ICommentRepository
         _db = db;
     }
 
-    public Task<int> CountRootsAsync(CancellationToken cancellationToken = default)
-        => _db.Comments.AsNoTracking().CountAsync(c => c.ParentId == null, cancellationToken);
-
     public async Task<RootPageResult> GetRootPageAsync(
         CommentPageRequest request,
         CancellationToken cancellationToken = default)
@@ -97,13 +94,43 @@ public sealed class CommentRepository : ICommentRepository
 
     public async Task<CommentTotals> GetTotalsAsync(CancellationToken cancellationToken = default)
     {
-        var totalComments = await _db.Comments.LongCountAsync(cancellationToken);
-        var totalRoots = await _db.Comments.LongCountAsync(c => c.ParentId == null, cancellationToken);
-        var totalAttachments = await _db.Attachments.LongCountAsync(cancellationToken);
-        var oldest = await _db.Comments.MinAsync(c => (DateTime?)c.CreatedAt, cancellationToken);
-        var newest = await _db.Comments.MaxAsync(c => (DateTime?)c.CreatedAt, cancellationToken);
+        // All five aggregates in one round-trip. Five separate queries would each pay their own
+        // network hop and their own pass over `comments` — the one table here that grows without
+        // bound — and the result now also feeds list pagination, not just GET /api/stats
+        // (docs/API-v2.md §3.5, §9). Constant SQL: nothing is concatenated into it.
+        var rows = await _db.Database
+            .SqlQueryRaw<TotalsRow>(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM comments)                         AS "TotalComments",
+                    (SELECT COUNT(*) FROM comments WHERE parent_id IS NULL) AS "TotalRoots",
+                    (SELECT COUNT(*) FROM attachments)                      AS "TotalAttachments",
+                    (SELECT MIN(created_at) FROM comments)                  AS "OldestAt",
+                    (SELECT MAX(created_at) FROM comments)                  AS "NewestAt"
+                """)
+            .ToListAsync(cancellationToken);
 
-        return new CommentTotals(totalComments, totalRoots, totalAttachments, oldest, newest);
+        var row = rows.Single();
+        return new CommentTotals(
+            row.TotalComments,
+            row.TotalRoots,
+            row.TotalAttachments,
+            row.OldestAt,
+            row.NewestAt);
+    }
+
+    /// <summary>Row shape of the single-round-trip totals query above (five scalar subqueries).</summary>
+    private sealed class TotalsRow
+    {
+        public long TotalComments { get; set; }
+
+        public long TotalRoots { get; set; }
+
+        public long TotalAttachments { get; set; }
+
+        public DateTime? OldestAt { get; set; }
+
+        public DateTime? NewestAt { get; set; }
     }
 
     /// <summary>

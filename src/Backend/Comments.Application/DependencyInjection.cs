@@ -19,6 +19,9 @@ public static class DependencyInjection
         services.AddScoped<ICommentQueryService, CommentQueryService>();
         services.AddScoped<ICommentCreateService, CommentCreateService>();
 
+        // Cached aggregate counters, shared by list pagination and GET /api/stats (docs/API-v2.md §9).
+        services.AddScoped<CommentTotalsProvider>();
+
         return services;
     }
 }

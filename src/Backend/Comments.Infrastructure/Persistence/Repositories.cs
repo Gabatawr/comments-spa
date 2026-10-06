@@ -19,6 +19,8 @@ public sealed class AttachmentRepository : IAttachmentRepository
 
     public async Task AddAsync(Attachment attachment, CancellationToken cancellationToken = default)
         => await _db.Attachments.AddAsync(attachment, cancellationToken);
+
+    public void Remove(Attachment attachment) => _db.Attachments.Remove(attachment);
 }
 
 public sealed class UnitOfWork : IUnitOfWork

@@ -751,7 +751,7 @@ if [ "$STATUS" = "201" ]; then
     sleep 1
   done
   if [ "$STATUS" = "503" ]; then
-    skip "GET /api/search (503 Search unavailable -> Search:Enabled=false)"
+    skip "GET /api/search (503 Search unavailable -> Providers:Search=none)"
   elif [ "$SEARCH_OK" = "1" ]; then
     pass "GET /api/search?q=<token> found the indexed comment (totalItems=$(jget "d.get('totalItems')"))"
     [ "$(jget "'query' in d and 'took' in d and 'items' in d")" = "True" ] \

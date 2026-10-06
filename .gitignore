@@ -57,3 +57,6 @@ Thumbs.db
 
 # Docker buildx state (sandbox workaround)
 .buildx/
+
+# Локальные материалы, которых не должно быть в репозитории: заметки, черновики, ревью
+.ignore/

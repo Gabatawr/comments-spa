@@ -18,8 +18,6 @@ namespace Comments.Api.Infrastructure.WebSockets;
 /// </summary>
 public sealed class WebSocketHub : IDisposable
 {
-    private const string CommentCreatedEventType = "CommentCreated";
-
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ConcurrentDictionary<Guid, WebSocket> _sockets = new();
@@ -66,12 +64,14 @@ public sealed class WebSocketHub : IDisposable
 
     private Task OnEnvelopeAsync(DomainEventEnvelope envelope, CancellationToken cancellationToken)
     {
-        if (!string.Equals(envelope.EventType, CommentCreatedEventType, StringComparison.OrdinalIgnoreCase))
+        if (!envelope.IsCommentCreated())
         {
             return Task.CompletedTask;
         }
 
-        var comment = ExtractComment(envelope.Payload);
+        // Same unwrapping as the other consumers of this event (DomainEventPayload), so the two can
+        // never disagree about what a CommentCreated payload looks like.
+        var comment = envelope.Payload.AsComment();
         if (comment is null)
         {
             _logger.LogWarning("Received a {EventType} envelope without a readable comment payload", envelope.EventType);
@@ -119,39 +119,6 @@ public sealed class WebSocketHub : IDisposable
         }
 
         return false;
-    }
-
-    private static CommentDto? ExtractComment(object? payload)
-    {
-        switch (payload)
-        {
-            case null:
-                return null;
-            case CommentCreatedEvent created:
-                return created.Comment;
-            case CommentDto dto:
-                return dto;
-        }
-
-        try
-        {
-            JsonElement element = payload is JsonElement jsonElement
-                ? jsonElement
-                : JsonSerializer.SerializeToElement(payload, JsonOptions);
-
-            if (element.ValueKind == JsonValueKind.Object
-                && element.TryGetProperty("comment", out var inner)
-                && inner.ValueKind == JsonValueKind.Object)
-            {
-                element = inner;
-            }
-
-            return element.Deserialize<CommentDto>(JsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 
     // ---------------------------------------------------------------- connection

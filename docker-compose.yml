@@ -106,7 +106,7 @@ services:
     container_name: comments-spa-postgres
     environment: *postgres-env
     ports:
-      - "${POSTGRES_HOST_PORT:-55432}:5432"
+      - "${POSTGRES_HOST_PORT:-127.0.0.1:55432}:5432"
     volumes:
       - comments-spa-postgres-data:/var/lib/postgresql/data
       # Runs once on an empty data dir. Schema stays with EF migrations;
@@ -129,7 +129,7 @@ services:
     container_name: comments-spa-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "${REDIS_HOST_PORT:-56379}:6379"
+      - "${REDIS_HOST_PORT:-127.0.0.1:56379}:6379"
     volumes:
       - comments-spa-redis-data:/data
     healthcheck:
@@ -159,8 +159,8 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-comments}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
     ports:
-      - "${RABBITMQ_HOST_PORT:-5672}:5672"
-      - "${RABBITMQ_MGMT_HOST_PORT:-15672}:15672"
+      - "${RABBITMQ_HOST_PORT:-127.0.0.1:5672}:5672"
+      - "${RABBITMQ_MGMT_HOST_PORT:-127.0.0.1:15672}:15672"
     volumes:
       - comments-spa-rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
@@ -189,7 +189,7 @@ services:
       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
       bootstrap.memory_lock: "false"
     ports:
-      - "${ELASTIC_HOST_PORT:-59200}:9200"
+      - "${ELASTIC_HOST_PORT:-127.0.0.1:59200}:9200"
     volumes:
       - comments-spa-elasticsearch-data:/usr/share/elasticsearch/data
     mem_limit: 2g
@@ -214,7 +214,7 @@ services:
     container_name: comments-spa-api
     environment: *api-env
     ports:
-      - "${API_HOST_PORT:-8081}:8080"
+      - "${API_HOST_PORT:-127.0.0.1:8081}:8080"
     volumes:
       - comments-spa-api-storage:/app/storage
     depends_on:

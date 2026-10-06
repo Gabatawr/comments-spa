@@ -161,6 +161,33 @@ public sealed class AttachmentService : IAttachmentService
     public bool TryGetLocalPath(Attachment attachment, out string fullPath) =>
         _storage.TryGetLocalPath(attachment.StoragePath, out fullPath);
 
+    /// <summary>
+    /// Compensation for a create that failed after the upload was persisted. Both halves are best
+    /// effort and logged: this runs while another exception is on its way out, and a cleanup
+    /// failure must not replace the real error the caller needs to see.
+    /// </summary>
+    public async Task DeleteAsync(Attachment attachment, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _attachments.Remove(attachment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not remove orphaned attachment row #{AttachmentId}", attachment.Id);
+        }
+
+        try
+        {
+            await _storage.DeleteAsync(attachment.StoragePath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete orphaned stored file {StoredName}", attachment.StoredName);
+        }
+    }
+
     private AttachmentValidation ValidateImage(byte[] bytes, string originalName, ImageFormat format)
     {
         // The declared format must also be allowlisted: a real PNG named a.bmp / a.webp must be
